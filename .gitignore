@@ -269,3 +269,4 @@ virtualenv/
 docs/
 diary/
 .c*
+/data
