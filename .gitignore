@@ -1,12 +1,14 @@
-# Byte-compiled / optimized / DLL files
+# =============================================================================
+# Quantitative Trading System - .gitignore
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# Python
+# -----------------------------------------------------------------------------
 __pycache__/
 *.py[cod]
 *$py.class
-
-# C extensions
 *.so
-
-# Distribution / packaging
 .Python
 build/
 develop-eggs/
@@ -26,6 +28,13 @@ share/python-wheels/
 *.egg
 MANIFEST
 
+# Virtual environments
+venv/
+ENV/
+env/
+.venv/
+.env/
+
 # PyInstaller
 *.manifest
 *.spec
@@ -34,7 +43,7 @@ MANIFEST
 pip-log.txt
 pip-delete-this-directory.txt
 
-# Unit test / coverage reports
+# Unit test / coverage
 htmlcov/
 .tox/
 .nox/
@@ -53,17 +62,17 @@ cover/
 *.mo
 *.pot
 
-# Django stuff:
+# Django
 *.log
 local_settings.py
 db.sqlite3
 db.sqlite3-journal
 
-# Flask stuff:
+# Flask
 instance/
 .webassets-cache
 
-# Scrapy stuff:
+# Scrapy
 .scrapy
 
 # Sphinx documentation
@@ -75,7 +84,6 @@ target/
 
 # Jupyter Notebook
 .ipynb_checkpoints
-*.ipynb
 
 # IPython
 profile_default/
@@ -96,29 +104,23 @@ poetry.lock
 # PEP 582
 __pypackages__/
 
-# Celery stuff
+# Celery
 celerybeat-schedule
 celerybeat.pid
 
-# SageMath parsed files
+# SageMath
 *.sage.py
 
 # Environments
 .env
 .env.*
 !.env.example
-.venv
-env/
-venv/
-ENV/
-env.bak/
-venv.bak/
 
-# Spyder project settings
+# Spyder
 .spyderproject
 .spyproject
 
-# Rope project settings
+# Rope
 .ropeproject
 
 # mkdocs documentation
@@ -129,26 +131,98 @@ venv.bak/
 .dmypy.json
 dmypy.json
 
-# Pyre type checker
+# Pyre
 .pyre/
 
-# pytype static type analyzer
+# pytype
 .pytype/
 
 # Cython debug symbols
 cython_debug/
 
-# IDE
+# -----------------------------------------------------------------------------
+# IDE and Editors
+# -----------------------------------------------------------------------------
+# VSCode
 .vscode/
+*.code-workspace
+.history/
+
+# PyCharm
 .idea/
+*.iml
+*.ipr
+*.iws
+out/
+
+# Sublime Text
 *.sublime-project
 *.sublime-workspace
+
+# Vim
 *.swp
 *.swo
 *~
-.DS_Store
+.netrwhist
 
-# Trading System Specific
+# Emacs
+*~
+\#*\#
+/.emacs.desktop
+/.emacs.desktop.lock
+*.elc
+auto-save-list
+tramp
+.\#*
+
+# -----------------------------------------------------------------------------
+# OS Generated
+# -----------------------------------------------------------------------------
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+.AppleDB
+.AppleDesktop
+Network Trash Folder
+Temporary Items
+.apdisk
+
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+*.stackdump
+[Dd]esktop.ini
+$RECYCLE.BIN/
+*.cab
+*.msi
+*.msix
+*.msm
+*.msp
+*.lnk
+
+# Linux
+*~
+.fuse_hidden*
+.directory
+.Trash-*
+.nfs*
+
+# -----------------------------------------------------------------------------
+# Trading & Finance Specific
+# -----------------------------------------------------------------------------
+# Data files (can be large)
 data/raw/*
 data/processed/*
 data/cache/*
@@ -156,117 +230,172 @@ data/cache/*
 !data/processed/.gitkeep
 !data/cache/.gitkeep
 
-# Logs
-logs/
-*.log
-!logs/.gitkeep
-
-# Backups
-backups/
-*.sql
-*.sql.gz
-*.dump
-
-# Market Data
-*.csv
+# Tick data and market data
 *.parquet
+*.feather
 *.h5
 *.hdf5
-*.feather
-*.pickle
-*.pkl
+!tests/fixtures/*.parquet
 
-# Credentials and API Keys
-credentials/
+# Model artifacts
+models/
+*.pkl
+*.pickle
+*.joblib
+*.model
+*.pt
+*.pth
+*.onnx
+!tests/fixtures/*.pkl
+
+# Backtest results (can be large)
+backtest_results/
+*.bt_results
+
+# ML experiment tracking
+mlruns/
+mlflow/
+wandb/
+
+# -----------------------------------------------------------------------------
+# Credentials & Secrets (CRITICAL)
+# -----------------------------------------------------------------------------
+# API keys and secrets
 *.pem
 *.key
 *.crt
-*.p12
+*.cer
 secrets/
+credentials/
+.secrets
 api_keys.json
 api_keys.yaml
+api_keys.yml
 
-# Model Files
-models/*.pkl
-models/*.joblib
-models/*.h5
-models/*.pt
-models/*.onnx
-!models/.gitkeep
+# Broker credentials
+ib_gateway.conf
+tws_settings/
+TWS/
+IBController/
 
-# Backtesting Results
-backtests/
-results/
-reports/*.html
-reports/*.pdf
-!reports/.gitkeep
+# AWS
+.aws/
+aws_credentials
 
-# Performance Profiles
-*.prof
-*.lprof
-profile.svg
-*.flamegraph
+# GCP
+*.json
+!package.json
+!tsconfig.json
+!configs/*.json
+gcloud/
 
-# Docker
-docker-compose.override.yml
-.dockerignore
+# Database credentials
+.pgpass
+.my.cnf
 
-# Terraform
-*.tfstate
-*.tfstate.*
-.terraform/
-.terraform.lock.hcl
+# -----------------------------------------------------------------------------
+# Logs & Runtime
+# -----------------------------------------------------------------------------
+logs/
+*.log
+*.log.*
+log/
 
-# System Files
-Thumbs.db
-Desktop.ini
+# PID files
+*.pid
 
 # Temporary files
+tmp/
+temp/
 *.tmp
 *.temp
 *.bak
-.~*
 
-# Research notebooks (keep only examples)
-notebooks/research/*
-!notebooks/research/example_*.ipynb
-notebooks/scratch/*
+# -----------------------------------------------------------------------------
+# Docker
+# -----------------------------------------------------------------------------
+# Docker local overrides
+docker-compose.override.yml
+docker-compose.local.yml
+.docker/
 
-# Output files
-output/
-exports/
+# -----------------------------------------------------------------------------
+# Database
+# -----------------------------------------------------------------------------
+# SQLite
+*.sqlite
+*.sqlite3
+*.db
 
-# Cache directories
-.cache/
-.ruff_cache/
-.hypothesis/
+# PostgreSQL
+*.sql.gz
+pg_dump/
 
-# Test artifacts
-.benchmarks/
-.mutmut-cache
+# Redis
+dump.rdb
+appendonly.aof
 
-# Documentation build
-docs/_build/
-docs/api/
+# ClickHouse
+clickhouse_data/
 
-# Config overrides
-configs/local/
-configs/*.local.*
+# -----------------------------------------------------------------------------
+# Build & Deployment
+# -----------------------------------------------------------------------------
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+crash.log
+*.tfvars
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+.terraformrc
+terraform.rc
 
-# Trading specific
-positions.json
-orders.json
-trades.csv
-pnl_report.*
+# Kubernetes
+*.kubeconfig
 
+# Ansible
+*.retry
+
+# -----------------------------------------------------------------------------
 # Monitoring
-grafana_data/
+# -----------------------------------------------------------------------------
+# Prometheus data
 prometheus_data/
 
-# Virtual environments with different names
-.venv*/
-virtualenv/
-docs/
-diary/
-.c*
-/data
+# Grafana data
+grafana_data/
+
+# -----------------------------------------------------------------------------
+# Project Specific
+# -----------------------------------------------------------------------------
+# Backups
+backups/
+*.backup
+
+# Reports
+reports/
+*.pdf
+!docs/*.pdf
+
+# Archives
+*.tar
+*.tar.gz
+*.zip
+*.rar
+*.7z
+
+# Large files
+*.csv
+!tests/fixtures/*.csv
+
+# Jupyter notebook outputs (optional - uncomment if needed)
+# *.ipynb
+
+# Performance profiles
+*.prof
+*.lprof
+profile_output/
