@@ -1,7 +1,32 @@
 """
-Core components for the trading system
+Core infrastructure components for the quantitative trading system.
 """
 
-from src.core.config import Settings, get_settings
+from .config import get_settings, Settings
+from .logging import (
+    TradingSystemLogger,
+    StructuredLogger,
+    LoguruLogger,
+    StrategyLogger,
+    BacktestLogger,
+    get_logger,
+    default_logger,
+    log_execution,
+    log_performance,
+)
 
-__all__ = ["Settings", "get_settings"]
+__all__ = [
+    # Configuration
+    "get_settings",
+    "Settings",
+    # Logging
+    "TradingSystemLogger",
+    "StructuredLogger",
+    "LoguruLogger",
+    "StrategyLogger",
+    "BacktestLogger",
+    "get_logger",
+    "default_logger",
+    "log_execution",
+    "log_performance",
+]
