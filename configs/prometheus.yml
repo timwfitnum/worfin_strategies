@@ -1,0 +1,52 @@
+# Prometheus Configuration for Quantitative Trading System
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    monitor: 'quant-trading-system'
+
+# Alerting configuration
+alerting:
+  alertmanagers:
+    - static_configs:
+        - targets:
+            - alertmanager:9093
+
+# Load alert rules
+rule_files:
+  - /etc/prometheus/alerts.yml
+
+# Scrape configurations
+scrape_configs:
+  # Prometheus self-monitoring
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # Main application metrics
+  - job_name: 'quant-app'
+    static_configs:
+      - targets: ['quant-app:8000']
+    metrics_path: /metrics
+
+  # Redis metrics (via redis_exporter if added)
+  - job_name: 'redis'
+    static_configs:
+      - targets: ['redis:6379']
+
+  # PostgreSQL/TimescaleDB metrics (via postgres_exporter if added)
+  - job_name: 'timescaledb'
+    static_configs:
+      - targets: ['timescaledb:5432']
+
+  # ClickHouse metrics
+  - job_name: 'clickhouse'
+    static_configs:
+      - targets: ['clickhouse:8123']
+    metrics_path: /metrics
+
+  # Node exporter (if added for host metrics)
+  - job_name: 'node'
+    static_configs:
+      - targets: ['node-exporter:9100']
