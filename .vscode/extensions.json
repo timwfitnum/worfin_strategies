@@ -1,0 +1,27 @@
+{
+    "recommendations": [
+        // ─── ESSENTIAL ──────────────────────────────────────────────────────
+        "anthropic.claude-code", // Claude Code — primary AI assistant
+        "ms-python.python", // Python language support
+        "ms-python.black-formatter", // Black code formatter
+        "charliermarsh.ruff", // Ruff linter (fast, replaces flake8/isort)
+        "ms-python.mypy-type-checker", // Type checking
+        // ─── DATABASE ────────────────────────────────────────────────────────
+        "mtxr.sqltools", // SQL client built into VS Code
+        "mtxr.sqltools-driver-pg", // PostgreSQL driver for SQLTools
+        // ─── GIT ─────────────────────────────────────────────────────────────
+        "eamodio.gitlens", // Git supercharged — blame, history
+        // ─── DEVELOPER EXPERIENCE ────────────────────────────────────────────
+        "usernamehw.errorlens", // Inline error/warning display
+        "njpwerner.autodocstring", // Auto-generate Python docstrings
+        "ms-python.debugpy", // Python debugger
+        "christian-kohler.path-intellisense", // Path autocomplete
+        // ─── PRODUCTIVITY ─────────────────────────────────────────────────────
+        "streetsidesoftware.code-spell-checker", // Spell check in code
+        "mechatroner.rainbow-csv", // CSV file highlighting (for data work)
+        "mikestead.dotenv", // .env file syntax highlighting
+        // ─── OPTIONAL BUT USEFUL ──────────────────────────────────────────────
+        "ms-vscode.remote-ssh", // SSH into VPS from VS Code
+        "ms-azuretools.vscode-docker" // Docker support (for Tier 2+)
+    ]
+}

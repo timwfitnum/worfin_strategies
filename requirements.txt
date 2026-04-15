@@ -1,0 +1,29 @@
+# Core
+pandas
+numpy
+scipy
+statsmodels
+sqlalchemy
+psycopg2-binary
+
+# Strategy-specific
+arch          # GARCH vol modelling
+empyrical     # risk/return metrics
+vectorbt      # backtesting
+
+# Broker
+ib_insync     # Interactive Brokers
+
+# Data
+requests
+aiohttp
+yfinance      # COMEX free data
+nasdaq-data-link  # Quandl
+
+# Monitoring
+python-telegram-bot
+schedule
+prometheus-client
+
+pytest
+pytest-cov

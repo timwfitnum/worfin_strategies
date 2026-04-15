@@ -1,0 +1,118 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# WorFIn — Worthington-Fitnum Investments
+# .gitignore
+# ─────────────────────────────────────────────────────────────────────────────
+
+# ── SECRETS (NEVER COMMIT THESE) ─────────────────────────────────────────────
+.env
+*.pem
+*.key
+*.p12
+*.pfx
+secrets/
+credentials/
+
+# ── PYTHON ───────────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+dist/
+eggs/
+.eggs/
+*.egg-info/
+*.egg
+MANIFEST
+
+# ── VIRTUAL ENVIRONMENTS ──────────────────────────────────────────────────────
+.venv/
+venv/
+env/
+ENV/
+
+# ── TESTING & COVERAGE ───────────────────────────────────────────────────────
+.pytest_cache/
+.coverage
+.coverage.*
+coverage.xml
+htmlcov/
+*.hypothesis/
+
+# ── TYPE CHECKING & LINTING ───────────────────────────────────────────────────
+.mypy_cache/
+.ruff_cache/
+.dmypy.json
+dmypy.json
+
+# ── DATA (TOO LARGE FOR GIT) ──────────────────────────────────────────────────
+data/raw/
+data/downloads/
+data/cache/
+*.parquet
+*.feather
+*.arrow
+*.h5
+*.hdf5
+
+# ── DATABASE ──────────────────────────────────────────────────────────────────
+*.db
+*.sqlite
+*.sqlite3
+*.sql.gz        # DB backups (store in Backblaze, not git)
+
+# ── JUPYTER ───────────────────────────────────────────────────────────────────
+.ipynb_checkpoints/
+*.ipynb         # Use .py files — notebooks are not reproducible
+
+# ── BACKTEST OUTPUTS ──────────────────────────────────────────────────────────
+backtest/results/
+backtest/reports/
+*.pkl
+*.pickle
+
+# ── LOGS ─────────────────────────────────────────────────────────────────────
+logs/
+*.log
+*.log.*
+
+# ── OS ───────────────────────────────────────────────────────────────────────
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+Desktop.ini
+
+# ── IDE ───────────────────────────────────────────────────────────────────────
+.idea/
+*.swp
+*.swo
+*~
+.project
+.pydevproject
+
+# VS Code — sync settings via Settings Sync, not git
+.vscode/settings.json
+.vscode/launch.json
+# Keep these — shared with team
+!.vscode/extensions.json
+
+# ── INTERACTIVE BROKERS ───────────────────────────────────────────────────────
+ibapi/
+tws_settings/
+jts.ini
+
+# ── INFRASTRUCTURE ────────────────────────────────────────────────────────────
+*.tfstate
+*.tfstate.backup
+.terraform/
+ansible/inventory/production
+
+# ── DISTRIBUTION ─────────────────────────────────────────────────────────────
+dist/
+build/
+*.whl
