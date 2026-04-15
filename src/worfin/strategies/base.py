@@ -10,6 +10,7 @@ Every strategy MUST:
 
 Position sizing is NOT done here — it happens in risk/sizing.py.
 """
+
 from __future__ import annotations
 
 import logging
@@ -25,25 +26,27 @@ logger = logging.getLogger(__name__)
 @dataclass
 class StrategyConfig:
     """Immutable configuration for a strategy instance."""
-    strategy_id: str                # e.g., "S4"
-    name: str                       # e.g., "Basis-Momentum"
-    universe: list[str]             # Metal tickers in scope
-    rebalance_freq: str             # "daily", "weekly", "biweekly", "monthly"
-    target_vol: float               # Annualised vol target
-    max_drawdown_budget: float      # Max drawdown before suspension
-    min_history_days: int           # Minimum history needed for signals
+
+    strategy_id: str  # e.g., "S4"
+    name: str  # e.g., "Basis-Momentum"
+    universe: list[str]  # Metal tickers in scope
+    rebalance_freq: str  # "daily", "weekly", "biweekly", "monthly"
+    target_vol: float  # Annualised vol target
+    max_drawdown_budget: float  # Max drawdown before suspension
+    min_history_days: int  # Minimum history needed for signals
     parameters: dict = field(default_factory=dict)  # Strategy-specific params
 
 
 @dataclass
 class SignalResult:
     """Output of compute_signals() — normalised signals with metadata."""
+
     as_of_date: date
     strategy_id: str
-    signals: dict[str, float]          # {ticker: signal in [-1, +1]}
-    signal_metadata: dict[str, dict]   # {ticker: {raw_inputs...}}
-    is_valid: bool                     # False if data quality prevented computation
-    invalid_tickers: list[str]         # Tickers excluded due to data issues
+    signals: dict[str, float]  # {ticker: signal in [-1, +1]}
+    signal_metadata: dict[str, dict]  # {ticker: {raw_inputs...}}
+    is_valid: bool  # False if data quality prevented computation
+    invalid_tickers: list[str]  # Tickers excluded due to data issues
 
     def __post_init__(self) -> None:
         """Validate signal range after construction."""
@@ -133,6 +136,7 @@ class BaseStrategy(ABC):
           - Exception containment (returns flat signals on error)
         """
         import time
+
         start = time.monotonic()
 
         # Step 1: Validate inputs
@@ -141,7 +145,9 @@ class BaseStrategy(ABC):
         except Exception as e:
             self.logger.error(
                 "Input validation raised exception on %s: %s. Returning flat signals.",
-                as_of_date, e, exc_info=True,
+                as_of_date,
+                e,
+                exc_info=True,
             )
             return self._flat_result(as_of_date, is_valid=False, reason=str(e))
 
@@ -150,14 +156,17 @@ class BaseStrategy(ABC):
         ):
             self.logger.error(
                 "%s: All tickers invalid on %s. Cannot generate signals.",
-                self.strategy_id, as_of_date,
+                self.strategy_id,
+                as_of_date,
             )
             return self._flat_result(as_of_date, is_valid=False)
 
         if invalid_tickers:
             self.logger.warning(
                 "%s: Excluding %d tickers due to data issues: %s",
-                self.strategy_id, len(invalid_tickers), invalid_tickers,
+                self.strategy_id,
+                len(invalid_tickers),
+                invalid_tickers,
             )
 
         # Step 2: Compute signals
@@ -166,14 +175,19 @@ class BaseStrategy(ABC):
             elapsed = time.monotonic() - start
             self.logger.info(
                 "%s signals computed for %s in %.1fms. Valid tickers: %d.",
-                self.strategy_id, as_of_date, elapsed * 1000,
+                self.strategy_id,
+                as_of_date,
+                elapsed * 1000,
                 len([v for v in result.signals.values() if v != 0]),
             )
             return result
         except Exception as e:
             self.logger.error(
                 "%s: compute_signals raised exception on %s: %s. Returning flat.",
-                self.strategy_id, as_of_date, e, exc_info=True,
+                self.strategy_id,
+                as_of_date,
+                e,
+                exc_info=True,
             )
             return self._flat_result(as_of_date, is_valid=False, reason=str(e))
 
@@ -217,7 +231,10 @@ class BaseStrategy(ABC):
                 insufficient.append(ticker)
                 self.logger.warning(
                     "%s: %s has only %d days of history (needs %d).",
-                    self.strategy_id, ticker, available, self.config.min_history_days,
+                    self.strategy_id,
+                    ticker,
+                    available,
+                    self.config.min_history_days,
                 )
         return insufficient
 
@@ -233,4 +250,4 @@ class BaseStrategy(ABC):
             return pd.Series(0.0, index=series.index)
         z = (series - series.mean()) / series.std()
         clipped = z.clip(-clip, clip)
-        return clipped / clip   # normalise to [-1, +1]
+        return clipped / clip  # normalise to [-1, +1]

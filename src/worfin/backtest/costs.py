@@ -13,6 +13,7 @@ This module implements the full cost model:
 Cost budget rule: Always budget 30–50% HIGHER than baseline estimates.
 Use COST_STRESS_MULTIPLIER for stress-test scenarios.
 """
+
 from __future__ import annotations
 
 import logging
@@ -29,15 +30,15 @@ logger = logging.getLogger(__name__)
 
 TRANSACTION_COSTS: dict[str, dict] = {
     # Tier 1 — High Liquidity
-    "CA": {"spread_bps": 3.0,  "commission_usd": 3.00, "slippage_bps": 0.75},  # LME Copper
-    "AH": {"spread_bps": 3.0,  "commission_usd": 3.00, "slippage_bps": 0.75},  # LME Aluminium
-    "GC": {"spread_bps": 2.0,  "commission_usd": 3.00, "slippage_bps": 0.75},  # COMEX Gold
-    "SI": {"spread_bps": 3.0,  "commission_usd": 3.00, "slippage_bps": 1.00},  # COMEX Silver
+    "CA": {"spread_bps": 3.0, "commission_usd": 3.00, "slippage_bps": 0.75},  # LME Copper
+    "AH": {"spread_bps": 3.0, "commission_usd": 3.00, "slippage_bps": 0.75},  # LME Aluminium
+    "GC": {"spread_bps": 2.0, "commission_usd": 3.00, "slippage_bps": 0.75},  # COMEX Gold
+    "SI": {"spread_bps": 3.0, "commission_usd": 3.00, "slippage_bps": 1.00},  # COMEX Silver
     # Tier 2 — Medium Liquidity
-    "ZS": {"spread_bps": 4.0,  "commission_usd": 3.00, "slippage_bps": 1.00},  # LME Zinc
-    "NI": {"spread_bps": 8.0,  "commission_usd": 3.00, "slippage_bps": 2.00},  # LME Nickel
-    "PB": {"spread_bps": 5.0,  "commission_usd": 3.00, "slippage_bps": 1.50},  # LME Lead
-    "PL": {"spread_bps": 6.0,  "commission_usd": 3.00, "slippage_bps": 2.00},  # COMEX Platinum
+    "ZS": {"spread_bps": 4.0, "commission_usd": 3.00, "slippage_bps": 1.00},  # LME Zinc
+    "NI": {"spread_bps": 8.0, "commission_usd": 3.00, "slippage_bps": 2.00},  # LME Nickel
+    "PB": {"spread_bps": 5.0, "commission_usd": 3.00, "slippage_bps": 1.50},  # LME Lead
+    "PL": {"spread_bps": 6.0, "commission_usd": 3.00, "slippage_bps": 2.00},  # COMEX Platinum
     # Tier 3 — Low Liquidity
     "SN": {"spread_bps": 20.0, "commission_usd": 3.00, "slippage_bps": 5.00},  # LME Tin
     "PA": {"spread_bps": 10.0, "commission_usd": 3.00, "slippage_bps": 3.00},  # COMEX Palladium
@@ -45,8 +46,8 @@ TRANSACTION_COSTS: dict[str, dict] = {
 
 # Roll costs — incurred when rolling from front to next contract
 ROLL_COSTS: dict[str, dict] = {
-    "LME":   {"typical_bps": 2.0,   "stressed_bps": 8.0},   # LME 3M roll
-    "COMEX": {"typical_bps": 1.5,   "stressed_bps": 5.0},   # COMEX calendar spread
+    "LME": {"typical_bps": 2.0, "stressed_bps": 8.0},  # LME 3M roll
+    "COMEX": {"typical_bps": 1.5, "stressed_bps": 5.0},  # COMEX calendar spread
 }
 
 # Stress multiplier — budget 50% higher than baseline for safety
@@ -59,14 +60,15 @@ COST_BASELINE_MULTIPLIER: float = 1.20
 @dataclass
 class TradeCost:
     """Breakdown of all costs for a single round-trip trade."""
+
     ticker: str
     notional_usd: float
     lots: int
 
-    spread_cost_usd: float    # Half-spread paid on entry + exit
-    commission_usd: float     # Broker commission
-    slippage_usd: float       # Market impact / timing cost
-    roll_cost_usd: float      # Roll cost (if holding across roll date)
+    spread_cost_usd: float  # Half-spread paid on entry + exit
+    commission_usd: float  # Broker commission
+    slippage_usd: float  # Market impact / timing cost
+    roll_cost_usd: float  # Roll cost (if holding across roll date)
 
     @property
     def total_cost_usd(self) -> float:
@@ -105,7 +107,7 @@ def compute_trade_cost(
     """
     if ticker not in TRANSACTION_COSTS:
         logger.error("No cost data for ticker %s — using maximum cost (Tier 3).", ticker)
-        costs = TRANSACTION_COSTS["SN"]   # Use worst case
+        costs = TRANSACTION_COSTS["SN"]  # Use worst case
     else:
         costs = TRANSACTION_COSTS[ticker]
 

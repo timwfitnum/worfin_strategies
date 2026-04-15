@@ -39,7 +39,7 @@ addopts = "-v --tb=short --cov=. --cov-report=term-missing"
 filterwarnings = [
     "ignore::DeprecationWarning",
 ]
-pythonpath = ["src"] 
+pythonpath = ["src"]
 
 [tool.coverage.run]
 source = ["."]

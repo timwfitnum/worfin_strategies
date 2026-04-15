@@ -29,6 +29,7 @@ REFERENCE: Bakshi, Gao & Rossi (2019) — t-stat 4.14 (highest in our universe)
 REBALANCE: Bi-weekly (every 10 trading days)
 ALLOCATION: 25% of total capital (largest single strategy)
 """
+
 from __future__ import annotations
 
 import logging
@@ -53,16 +54,16 @@ S4_CONFIG = StrategyConfig(
     name="Basis-Momentum",
     universe=S4_UNIVERSE,
     rebalance_freq="biweekly",
-    target_vol=0.11,           # 11% annualised per-strategy vol target
+    target_vol=0.11,  # 11% annualised per-strategy vol target
     max_drawdown_budget=0.15,  # Suspend if 15% drawdown from HWM
-    min_history_days=70,       # Need 65 days for momentum + 5-day skip
+    min_history_days=70,  # Need 65 days for momentum + 5-day skip
     parameters={
-        "carry_weight": 0.50,       # Weight on carry sub-signal
-        "momentum_weight": 0.50,    # Weight on momentum sub-signal
-        "interaction_weight": 0.25, # Weight on carry × momentum interaction
-        "momentum_lookback": 60,    # Days for momentum lookback
-        "momentum_skip": 5,         # Days to skip (short-term reversal avoidance)
-        "zscore_clip": 2.0,         # Clip z-scores at ±2 before normalising
+        "carry_weight": 0.50,  # Weight on carry sub-signal
+        "momentum_weight": 0.50,  # Weight on momentum sub-signal
+        "interaction_weight": 0.25,  # Weight on carry × momentum interaction
+        "momentum_lookback": 60,  # Days for momentum lookback
+        "momentum_skip": 5,  # Days to skip (short-term reversal avoidance)
+        "zscore_clip": 2.0,  # Clip z-scores at ±2 before normalising
     },
 )
 
@@ -117,9 +118,7 @@ class BasisMomentumStrategy(BaseStrategy):
             # Check as_of_date has data
             as_of_ts = pd.Timestamp(as_of_date)
             if as_of_ts not in df.index:
-                logger.warning(
-                    "%s: No data for %s on %s.", self.strategy_id, ticker, as_of_date
-                )
+                logger.warning("%s: No data for %s on %s.", self.strategy_id, ticker, as_of_date)
                 invalid.append(ticker)
                 continue
 
@@ -130,7 +129,11 @@ class BasisMomentumStrategy(BaseStrategy):
                 if pd.isna(val) or val <= 0:
                     logger.warning(
                         "%s: Invalid %s price for %s on %s: %s",
-                        self.strategy_id, col, ticker, as_of_date, val,
+                        self.strategy_id,
+                        col,
+                        ticker,
+                        as_of_date,
+                        val,
                     )
                     invalid.append(ticker)
                     break
@@ -158,7 +161,9 @@ class BasisMomentumStrategy(BaseStrategy):
         if len(valid_tickers) < 4:
             logger.error(
                 "%s: Only %d valid tickers on %s (need ≥4 for meaningful cross-sectional ranking).",
-                self.strategy_id, len(valid_tickers), as_of_date,
+                self.strategy_id,
+                len(valid_tickers),
+                as_of_date,
             )
             return self._flat_result(as_of_date, is_valid=False)
 
@@ -187,7 +192,10 @@ class BasisMomentumStrategy(BaseStrategy):
 
             if dte <= 0:
                 logger.warning(
-                    "%s: DTE <= 0 for %s on %s — skipping carry.", self.strategy_id, ticker, as_of_date
+                    "%s: DTE <= 0 for %s on %s — skipping carry.",
+                    self.strategy_id,
+                    ticker,
+                    as_of_date,
                 )
                 raw_carry[ticker] = 0.0
             else:
@@ -204,12 +212,14 @@ class BasisMomentumStrategy(BaseStrategy):
             if min_idx < 0:
                 logger.warning(
                     "%s: Insufficient history for momentum on %s (%d days available).",
-                    self.strategy_id, ticker, len(df_to_date),
+                    self.strategy_id,
+                    ticker,
+                    len(df_to_date),
                 )
                 raw_momentum[ticker] = 0.0
             else:
                 # Price 65 days ago (skip last 5 to avoid short-term reversal)
-                price_now = float(df_to_date["close"].iloc[-(skip + 1)])   # T-5
+                price_now = float(df_to_date["close"].iloc[-(skip + 1)])  # T-5
                 price_then = float(df_to_date["close"].iloc[-(lookback + skip)])  # T-65
 
                 if price_then <= 0:
@@ -249,12 +259,14 @@ class BasisMomentumStrategy(BaseStrategy):
 
         # Add composite signal data to metadata
         for ticker in valid_tickers:
-            metadata[ticker].update({
-                "z_carry": float(z_carry.get(ticker, 0.0)),
-                "z_momentum": float(z_mom.get(ticker, 0.0)),
-                "composite_raw": float(signals_raw.get(ticker, 0.0)),
-                "final_signal": float(final_signals.get(ticker, 0.0)),
-            })
+            metadata[ticker].update(
+                {
+                    "z_carry": float(z_carry.get(ticker, 0.0)),
+                    "z_momentum": float(z_mom.get(ticker, 0.0)),
+                    "composite_raw": float(signals_raw.get(ticker, 0.0)),
+                    "final_signal": float(final_signals.get(ticker, 0.0)),
+                }
+            )
 
         # Build final signals dict — flat (0.0) for any invalid/missing tickers
         all_signals: dict[str, float] = {t: 0.0 for t in self.universe}

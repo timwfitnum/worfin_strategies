@@ -3,12 +3,13 @@ config/settings.py
 Central configuration — all values read from environment / .env file.
 Never hardcode anything that appears here.
 """
+
 from __future__ import annotations
 
 from enum import Enum
 from functools import lru_cache
 
-from pydantic import PostgresDsn, field_validator
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 

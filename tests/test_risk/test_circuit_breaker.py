@@ -3,9 +3,10 @@ tests/test_risk/test_circuit_breakers.py
 Circuit breaker tests — 100% coverage required.
 Every trigger condition must be tested at-threshold and just-below.
 """
+
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 
@@ -17,11 +18,7 @@ from worfin.risk.circuit_breakers import (
 )
 from worfin.risk.limits import (
     DAILY_LOSS_LIMIT,
-    HARD_STOP_DRAWDOWN,
-    MONTHLY_DRAWDOWN_LIMIT,
-    PEAK_DRAWDOWN_SUSPEND,
     STRATEGY_DRAWDOWN_BUDGET,
-    WEEKLY_LOSS_LIMIT,
 )
 
 
@@ -38,7 +35,7 @@ def make_pnl(
         weekly_pnl=weekly_pnl,
         month_start_nav=month_start_nav,
         all_time_hwm=all_time_hwm,
-        as_of=datetime.now(timezone.utc),
+        as_of=datetime.now(UTC),
     )
 
 
@@ -50,24 +47,24 @@ def breaker():
 class TestDailyLossBreaker:
 
     def test_triggers_at_exactly_2pct(self, breaker):
-        pnl = make_pnl(nav=100_000, daily_pnl=-2_000)   # Exactly -2%
+        pnl = make_pnl(nav=100_000, daily_pnl=-2_000)  # Exactly -2%
         result = breaker.check_all(pnl)
         assert result.action == CircuitBreakerAction.FLATTEN_ALL
         assert result.triggered_by == "daily_loss"
 
     def test_does_not_trigger_at_199bps(self, breaker):
-        pnl = make_pnl(nav=100_000, daily_pnl=-1_990)   # -1.99%
+        pnl = make_pnl(nav=100_000, daily_pnl=-1_990)  # -1.99%
         result = breaker.check_all(pnl)
         # Should only warn, not flatten
         assert result.action != CircuitBreakerAction.FLATTEN_ALL
 
     def test_warning_at_75pct_of_limit(self, breaker):
-        pnl = make_pnl(nav=100_000, daily_pnl=-1_500)   # -1.5% = 75% of 2%
+        pnl = make_pnl(nav=100_000, daily_pnl=-1_500)  # -1.5% = 75% of 2%
         result = breaker.check_all(pnl)
         assert result.action == CircuitBreakerAction.WARN
 
     def test_clear_on_positive_day(self, breaker):
-        pnl = make_pnl(nav=101_000, daily_pnl=+1_000)   # Positive day
+        pnl = make_pnl(nav=101_000, daily_pnl=+1_000)  # Positive day
         result = breaker.check_all(pnl)
         assert result.action == CircuitBreakerAction.NONE
 
@@ -82,12 +79,12 @@ class TestDailyLossBreaker:
 class TestWeeklyLossBreaker:
 
     def test_triggers_at_35bps(self, breaker):
-        pnl = make_pnl(nav=100_000, weekly_pnl=-3_500)   # -3.5%
+        pnl = make_pnl(nav=100_000, weekly_pnl=-3_500)  # -3.5%
         result = breaker.check_all(pnl)
         assert result.action == CircuitBreakerAction.REDUCE_50_PCT
 
     def test_does_not_trigger_at_349bps(self, breaker):
-        pnl = make_pnl(nav=100_000, weekly_pnl=-3_490)   # -3.49%
+        pnl = make_pnl(nav=100_000, weekly_pnl=-3_490)  # -3.49%
         result = breaker.check_all(pnl)
         assert result.action not in (
             CircuitBreakerAction.REDUCE_50_PCT,
@@ -116,20 +113,20 @@ class TestMonthlyDrawdownBreaker:
 class TestPeakDrawdownBreaker:
 
     def test_full_suspend_at_10pct(self, breaker):
-        pnl = make_pnl(nav=90_000, all_time_hwm=100_000)   # -10% from HWM
+        pnl = make_pnl(nav=90_000, all_time_hwm=100_000)  # -10% from HWM
         result = breaker.check_all(pnl)
         assert result.action == CircuitBreakerAction.FULL_SUSPEND
         assert result.requires_human_review is True
 
     def test_hard_stop_at_15pct(self, breaker):
-        pnl = make_pnl(nav=85_000, all_time_hwm=100_000)   # -15% from HWM
+        pnl = make_pnl(nav=85_000, all_time_hwm=100_000)  # -15% from HWM
         result = breaker.check_all(pnl)
         assert result.action == CircuitBreakerAction.HARD_STOP
         assert result.requires_human_review is True
 
     def test_hard_stop_takes_priority_over_suspend(self, breaker):
         """HARD_STOP must always take priority when both conditions are met."""
-        pnl = make_pnl(nav=84_000, all_time_hwm=100_000)   # -16% (exceeds both)
+        pnl = make_pnl(nav=84_000, all_time_hwm=100_000)  # -16% (exceeds both)
         result = breaker.check_all(pnl)
         assert result.action == CircuitBreakerAction.HARD_STOP
 
@@ -141,12 +138,15 @@ class TestSeverityOrdering:
         """If daily loss limit is hit, FLATTEN_ALL takes priority over REDUCE_50_PCT."""
         pnl = make_pnl(
             nav=100_000,
-            daily_pnl=-2_100,    # Daily limit breached
-            weekly_pnl=-3_600,   # Weekly limit also breached
+            daily_pnl=-2_100,  # Daily limit breached
+            weekly_pnl=-3_600,  # Weekly limit also breached
         )
         result = breaker.check_all(pnl)
         # Peak drawdown may not be hit, so check the most severe applicable
-        assert result.action in (CircuitBreakerAction.FLATTEN_ALL, CircuitBreakerAction.REDUCE_50_PCT)
+        assert result.action in (
+            CircuitBreakerAction.FLATTEN_ALL,
+            CircuitBreakerAction.REDUCE_50_PCT,
+        )
 
 
 class TestStrategyBreaker:
@@ -156,17 +156,17 @@ class TestStrategyBreaker:
         return StrategyCircuitBreaker()
 
     def test_s4_suspends_at_budget(self, strategy_breaker):
-        budget = STRATEGY_DRAWDOWN_BUDGET["S4"]   # 15%
+        budget = STRATEGY_DRAWDOWN_BUDGET["S4"]  # 15%
         result = strategy_breaker.check_strategy_drawdown("S4", drawdown_from_hwm=budget)
         assert result.action == CircuitBreakerAction.FULL_SUSPEND
 
     def test_s5_suspends_at_lower_budget(self, strategy_breaker):
-        budget = STRATEGY_DRAWDOWN_BUDGET["S5"]   # 10%
+        budget = STRATEGY_DRAWDOWN_BUDGET["S5"]  # 10%
         result = strategy_breaker.check_strategy_drawdown("S5", drawdown_from_hwm=budget)
         assert result.action == CircuitBreakerAction.FULL_SUSPEND
 
     def test_warning_at_75pct_of_strategy_budget(self, strategy_breaker):
-        budget = STRATEGY_DRAWDOWN_BUDGET["S4"]   # 15%
+        budget = STRATEGY_DRAWDOWN_BUDGET["S4"]  # 15%
         result = strategy_breaker.check_strategy_drawdown("S4", drawdown_from_hwm=budget * 0.80)
         assert result.action == CircuitBreakerAction.WARN
 

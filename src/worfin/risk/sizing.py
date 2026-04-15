@@ -11,10 +11,11 @@ Key protections:
   - Liquidity discount: reduces exposure to illiquid metals
   - Min/max notional guardrails
 """
+
 from __future__ import annotations
 
 import logging
-from decimal import ROUND_DOWN, Decimal
+from decimal import Decimal
 
 from worfin.config.metals import ALL_METALS, get_lots_for_notional
 from worfin.risk.limits import (
@@ -29,9 +30,9 @@ logger = logging.getLogger(__name__)
 
 # Liquidity discount factors: reduce target notional for illiquid metals
 _LIQUIDITY_DISCOUNT: dict[int, float] = {
-    1: 1.00,   # Tier 1: full allocation
-    2: 0.75,   # Tier 2: 75% of computed notional
-    3: 0.50,   # Tier 3: 50% of computed notional
+    1: 1.00,  # Tier 1: full allocation
+    2: 0.75,  # Tier 2: 75% of computed notional
+    3: 0.50,  # Tier 3: 50% of computed notional
 }
 
 
@@ -84,7 +85,9 @@ def compute_position_notional(
         logger.warning(
             "Vol floor applied: %s 20d vol %.1f%% < floor %.1f%%. "
             "Using floor. Investigate if sustained.",
-            ticker, realised_vol_20d * 100, VOL_FLOOR * 100,
+            ticker,
+            realised_vol_20d * 100,
+            VOL_FLOOR * 100,
         )
 
     # ── Step 2: PRIMARY SIZING FORMULA ──────────────────────────────────────
@@ -101,9 +104,10 @@ def compute_position_notional(
 
     if notional < raw_notional:
         logger.debug(
-            "%s: 60d robustness cap applied (20d would have given %.0f GBP, "
-            "capped to %.0f GBP)",
-            ticker, raw_notional, notional,
+            "%s: 60d robustness cap applied (20d would have given %.0f GBP, " "capped to %.0f GBP)",
+            ticker,
+            raw_notional,
+            notional,
         )
 
     # ── Step 4: LIQUIDITY DISCOUNT ───────────────────────────────────────────
@@ -119,7 +123,9 @@ def compute_position_notional(
     if notional > max_allowed:
         logger.warning(
             "%s: Notional £%.0f exceeds max single-metal limit £%.0f — capping.",
-            ticker, notional, max_allowed,
+            ticker,
+            notional,
+            max_allowed,
         )
         notional = max_allowed
 
@@ -127,7 +133,9 @@ def compute_position_notional(
     if notional < MIN_POSITION_NOTIONAL_GBP:
         logger.debug(
             "%s: Notional £%.0f below minimum £%.0f — returning 0.",
-            ticker, notional, MIN_POSITION_NOTIONAL_GBP,
+            ticker,
+            notional,
+            MIN_POSITION_NOTIONAL_GBP,
         )
         return Decimal("0")
 
@@ -209,9 +217,7 @@ def compute_portfolio_sizing(
         result[strategy_id] = {}
         for ticker, signal in signals.items():
             if ticker not in vol_estimates or ticker not in prices:
-                logger.warning(
-                    "Missing vol or price data for %s — skipping sizing.", ticker
-                )
+                logger.warning("Missing vol or price data for %s — skipping sizing.", ticker)
                 result[strategy_id][ticker] = 0
                 continue
 

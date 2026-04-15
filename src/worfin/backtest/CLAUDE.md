@@ -47,12 +47,12 @@ HOLDOUT_START = date(2023, 1, 1) # Holdout start     (~15% of data)
 def anchored_walk_forward(strategy, all_data, step_size_months=6):
     """
     Anchored: always start from IS_START, expand window each step.
-    
+
     Why anchored (not rolling):
     1. Uses all available data — more statistical power
     2. Tests parameter stability as window expands
     3. Better reflects real deployment (use ALL history to calibrate)
-    
+
     Produces: Series of 6-month OOS return segments → concatenated equity curve
     Each segment: parameters fitted ONLY on data available at that time → no look-ahead
     """
@@ -152,7 +152,7 @@ def adjust_significance_for_multiple_tests(n_combinations_tested: int) -> float:
     """
     If you tested 100 parameter combinations and pick the best,
     there's ~99.4% chance at least one will appear significant at 5% by chance.
-    
+
     Always record total combinations tested (including discarded).
     Apply Bonferroni correction.
     """
@@ -185,10 +185,10 @@ WFER_MINIMUM = 0.50
 def compute_pbo(strategy, data, K=10):
     """
     de Prado (2018): Most rigorous overfitting detection.
-    
+
     PBO = Probability of Backtest Overfitting
         = fraction of train/test combinations where OOS Sharpe is negative
-    
+
     Target: PBO < 0.20
     Alert:  PBO > 0.40 (high overfitting probability)
     """
@@ -216,7 +216,7 @@ def check_parameter_stability(strategy, base_params):
     """
     Robust strategies show <20% Sharpe degradation for ±20% parameter shifts.
     Parameter-fragile strategies (>40% Sharpe degradation at ±20%) are likely overfitted.
-    
+
     Vary each parameter ±30% from selected value.
     Flag if Sharpe degrades >40% when any parameter shifts by 20%.
     """
@@ -302,13 +302,13 @@ Every strategy must have a formal report before passing G1:
 ```
 Section 1: Strategy Description — hypothesis, signal, economic rationale
 Section 2: Data & Methodology — sources, splits, cost model, roll method
-Section 3: In-Sample Results — metrics table, equity curve, monthly heatmap, 
+Section 3: In-Sample Results — metrics table, equity curve, monthly heatmap,
            drawdown chart, parameter sensitivity surface
 Section 4: Walk-Forward Results — OOS equity curve, WFER, IS vs OOS comparison
-Section 5: Overfitting Analysis — combinations tested, t-stat w/ correction, 
+Section 5: Overfitting Analysis — combinations tested, t-stat w/ correction,
            PBO, parameter stability
 Section 6: Risk Analysis — stress scenarios, factor exposure, strategy correlation
-Section 7: Conclusion — pass/fail at each gate, recommended allocation, 
+Section 7: Conclusion — pass/fail at each gate, recommended allocation,
            known risks, suspension conditions
 Section 8: Appendix — parameters, Git commit hash, data source versions
 ```

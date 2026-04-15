@@ -9,8 +9,8 @@ Any change to these values requires:
   2. Re-run of all stress tests
   3. Git commit with explicit message referencing the change
 """
-from __future__ import annotations
 
+from __future__ import annotations
 
 # ─────────────────────────────────────────────────────────────────────────────
 # VOLATILITY LIMITS
@@ -22,7 +22,7 @@ from __future__ import annotations
 VOL_FLOOR: float = 0.10  # 10% annualised — NEVER go below this
 
 # Alert thresholds: actual vol vs strategy target vol
-VOL_ALERT_MULTIPLIER: float = 1.5   # Alert if 20d vol > 1.5× target (Day 1/5)
+VOL_ALERT_MULTIPLIER: float = 1.5  # Alert if 20d vol > 1.5× target (Day 1/5)
 VOL_REDUCE_MULTIPLIER: float = 2.0  # Halve allocation if > 2× target
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -67,15 +67,15 @@ PEAK_DRAWDOWN_SUSPEND: float = 0.100  # 10% from all-time HWM
 HARD_STOP_DRAWDOWN: float = 0.150  # 15% from HWM
 
 # Reinstatement schedule after daily flatten
-DAILY_FLATTEN_REINSTATEMENT_PCT: float = 0.75   # Restart at 75% next day
+DAILY_FLATTEN_REINSTATEMENT_PCT: float = 0.75  # Restart at 75% next day
 
 # Reinstatement schedule after weekly reduction
 WEEKLY_SCALE_UP_PER_DAY: float = 0.10  # +10% per day back to 100%
 
 # Reinstatement schedule after peak drawdown suspension
-PEAK_DRAWDOWN_RESTART_PCT: float = 0.25          # Restart at 25%
-PEAK_DRAWDOWN_SCALE_UP_DAYS: int = 40            # Scale over 40 trading days
-PEAK_DRAWDOWN_COOL_OFF_DAYS: int = 10            # Min 10 days before restart
+PEAK_DRAWDOWN_RESTART_PCT: float = 0.25  # Restart at 25%
+PEAK_DRAWDOWN_SCALE_UP_DAYS: int = 40  # Scale over 40 trading days
+PEAK_DRAWDOWN_COOL_OFF_DAYS: int = 10  # Min 10 days before restart
 
 # ─────────────────────────────────────────────────────────────────────────────
 # STRATEGY-LEVEL DRAWDOWN BUDGETS
@@ -93,8 +93,8 @@ STRATEGY_DRAWDOWN_BUDGET: dict[str, float] = {
     "S6": 0.10,  # 10% — Pairs
 }
 
-STRATEGY_RESTART_PCT: float = 0.50       # Restart at 50% of normal risk budget
-STRATEGY_SCALE_UP_DAYS: int = 20         # Scale back to 100% over 20 trading days
+STRATEGY_RESTART_PCT: float = 0.50  # Restart at 50% of normal risk budget
+STRATEGY_SCALE_UP_DAYS: int = 20  # Scale back to 100% over 20 trading days
 
 # ─────────────────────────────────────────────────────────────────────────────
 # LIQUIDITY LIMITS
@@ -103,9 +103,9 @@ STRATEGY_SCALE_UP_DAYS: int = 20         # Scale back to 100% over 20 trading da
 # Violating these risks moving the market against yourself.
 
 MAX_ADV_PCT: dict[int, float] = {
-    1: 0.05,   # Tier 1 (Cu, Al, Zn, Au, Ag): max 5% of ADV
-    2: 0.03,   # Tier 2 (Ni, Pb, Pt): max 3% of ADV
-    3: 0.02,   # Tier 3 (Sn, Pd): max 2% of ADV
+    1: 0.05,  # Tier 1 (Cu, Al, Zn, Au, Ag): max 5% of ADV
+    2: 0.03,  # Tier 2 (Ni, Pb, Pt): max 3% of ADV
+    3: 0.02,  # Tier 3 (Sn, Pd): max 2% of ADV
 }
 
 # Maximum % of ADV in a single day (controls intraday impact)
@@ -135,7 +135,7 @@ CORRELATION_ALERT_CONSECUTIVE_DAYS: int = 10  # Alert if exceeded for this many 
 # ─────────────────────────────────────────────────────────────────────────────
 
 # Fat-finger protection — reject orders >2% away from current mid
-FAT_FINGER_PRICE_DEVIATION_PCT: float = 0.02   # 2%
+FAT_FINGER_PRICE_DEVIATION_PCT: float = 0.02  # 2%
 
 # Maximum orders per day (across all strategies)
 MAX_DAILY_ORDERS: int = 50
@@ -156,12 +156,12 @@ SLIPPAGE_ALERT_MULTIPLIER: float = 2.0
 # These drive: Position_Notional = (target_vol × allocation) / realised_vol
 
 STRATEGY_TARGET_VOL: dict[str, float] = {
-    "S1": 0.09,   # 9%  — Carry (lower — more stable)
-    "S2": 0.11,   # 11% — TSMOM
-    "S3": 0.09,   # 9%  — XS Momentum
-    "S4": 0.11,   # 11% — Basis-Momentum (core strategy)
-    "S5": 0.07,   # 7%  — Inventory (event-driven, shorter hold)
-    "S6": 0.07,   # 7%  — Pairs (market-neutral, lower vol)
+    "S1": 0.09,  # 9%  — Carry (lower — more stable)
+    "S2": 0.11,  # 11% — TSMOM
+    "S3": 0.09,  # 9%  — XS Momentum
+    "S4": 0.11,  # 11% — Basis-Momentum (core strategy)
+    "S5": 0.07,  # 7%  — Inventory (event-driven, shorter hold)
+    "S6": 0.07,  # 7%  — Pairs (market-neutral, lower vol)
 }
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -179,9 +179,7 @@ STRATEGY_ALLOCATION: dict[str, float] = {
     "S6": 0.10,  # 10% — Pairs
 }
 
-assert abs(sum(STRATEGY_ALLOCATION.values()) - 1.0) < 1e-10, (
-    "Strategy allocations must sum to 1.0"
-)
+assert abs(sum(STRATEGY_ALLOCATION.values()) - 1.0) < 1e-10, "Strategy allocations must sum to 1.0"
 
 # ─────────────────────────────────────────────────────────────────────────────
 # DATA QUALITY THRESHOLDS
@@ -202,8 +200,8 @@ PRICE_DISCREPANCY_THRESHOLD: float = 0.005  # 0.5%
 # ─────────────────────────────────────────────────────────────────────────────
 
 # Block new orders if position discrepancy exceeds either threshold
-RECONCILIATION_VALUE_THRESHOLD_GBP: float = 100.0   # £100
-RECONCILIATION_PCT_THRESHOLD: float = 0.001          # 0.1% of position notional
+RECONCILIATION_VALUE_THRESHOLD_GBP: float = 100.0  # £100
+RECONCILIATION_PCT_THRESHOLD: float = 0.001  # 0.1% of position notional
 
 # ─────────────────────────────────────────────────────────────────────────────
 # KILL SWITCH

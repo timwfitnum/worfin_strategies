@@ -9,31 +9,30 @@ Structured JSON logs provide the audit trail.
 Never let alert failures mask the underlying issue —
 alerts are fire-and-forget. Always log first, then alert.
 """
+
 from __future__ import annotations
 
 import json
 import logging
-import traceback
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
-from typing import Optional
 
 logger = logging.getLogger(__name__)
 
 
 class AlertLevel(str, Enum):
-    INFO = "INFO"         # Informational — daily reports, signals
-    WARNING = "WARNING"   # Needs attention — data quality, vol alerts
-    CRITICAL = "CRITICAL" # Immediate action — risk limits, system failures
-    KILL = "KILL"         # Kill switch conditions — flatten/liquidate
+    INFO = "INFO"  # Informational — daily reports, signals
+    WARNING = "WARNING"  # Needs attention — data quality, vol alerts
+    CRITICAL = "CRITICAL"  # Immediate action — risk limits, system failures
+    KILL = "KILL"  # Kill switch conditions — flatten/liquidate
 
 
 # Alert icons for Telegram readability
 _ICONS = {
-    AlertLevel.INFO:     "ℹ️",
-    AlertLevel.WARNING:  "⚠️",
+    AlertLevel.INFO: "ℹ️",
+    AlertLevel.WARNING: "⚠️",
     AlertLevel.CRITICAL: "🚨",
-    AlertLevel.KILL:     "🔴",
+    AlertLevel.KILL: "🔴",
 }
 
 
@@ -44,14 +43,15 @@ class AlertManager:
     """
 
     def __init__(self) -> None:
-        self._telegram_client: Optional[object] = None
-        self._telegram_chat_id: Optional[str] = None
+        self._telegram_client: object | None = None
+        self._telegram_chat_id: str | None = None
         self._initialized = False
 
     def configure(self, telegram_token: str, telegram_chat_id: str) -> None:
         """Configure Telegram. Call once at startup."""
         try:
             import telegram  # python-telegram-bot
+
             self._telegram_client = telegram.Bot(token=telegram_token)
             self._telegram_chat_id = telegram_chat_id
             self._initialized = True
@@ -65,9 +65,9 @@ class AlertManager:
         self,
         level: AlertLevel,
         message: str,
-        context: Optional[dict] = None,
-        strategy_id: Optional[str] = None,
-        ticker: Optional[str] = None,
+        context: dict | None = None,
+        strategy_id: str | None = None,
+        ticker: str | None = None,
     ) -> None:
         """
         Send an alert.
@@ -75,7 +75,7 @@ class AlertManager:
         Always logs to structured JSON logger.
         Sends Telegram for WARNING and above.
         """
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         icon = _ICONS[level]
 
         # ── Structured log (always) ───────────────────────────────────────────
@@ -106,9 +106,9 @@ class AlertManager:
         icon: str,
         level: AlertLevel,
         message: str,
-        strategy_id: Optional[str],
-        ticker: Optional[str],
-        context: Optional[dict],
+        strategy_id: str | None,
+        ticker: str | None,
+        context: dict | None,
         timestamp: datetime,
     ) -> None:
         """Send Telegram message. Non-blocking — never raises."""
@@ -130,11 +130,14 @@ class AlertManager:
 
         try:
             import asyncio
-            asyncio.run(self._telegram_client.send_message(  # type: ignore[union-attr]
-                chat_id=self._telegram_chat_id,
-                text=text,
-                parse_mode="Markdown",
-            ))
+
+            asyncio.run(
+                self._telegram_client.send_message(  # type: ignore[union-attr]
+                    chat_id=self._telegram_chat_id,
+                    text=text,
+                    parse_mode="Markdown",
+                )
+            )
         except Exception as e:
             # NEVER let alert failure propagate — log and continue
             logger.error("Telegram alert failed (non-critical): %s", e)
@@ -155,11 +158,16 @@ class AlertManager:
             AlertLevel.WARNING,
             f"{ticker}: Outlier daily return detected — {daily_return:.1%} ({z_score:.1f}σ). "
             f"Investigate before using in signals. Data NOT auto-discarded.",
-            context={"daily_return_pct": round(daily_return * 100, 2), "z_score": round(z_score, 1)},
+            context={
+                "daily_return_pct": round(daily_return * 100, 2),
+                "z_score": round(z_score, 1),
+            },
             ticker=ticker,
         )
 
-    def risk_limit_approaching(self, limit_name: str, current: float, limit: float, ticker: Optional[str] = None) -> None:
+    def risk_limit_approaching(
+        self, limit_name: str, current: float, limit: float, ticker: str | None = None
+    ) -> None:
         self.send(
             AlertLevel.WARNING,
             f"Risk limit approaching: {limit_name} at {current:.1%} of {limit:.1%} limit.",
@@ -167,12 +175,21 @@ class AlertManager:
             ticker=ticker,
         )
 
-    def circuit_breaker_triggered(self, action: str, reason: str, current_value: float, threshold: float) -> None:
-        level = AlertLevel.KILL if "FLATTEN" in action or "STOP" in action or "SUSPEND" in action else AlertLevel.CRITICAL
+    def circuit_breaker_triggered(
+        self, action: str, reason: str, current_value: float, threshold: float
+    ) -> None:
+        level = (
+            AlertLevel.KILL
+            if "FLATTEN" in action or "STOP" in action or "SUSPEND" in action
+            else AlertLevel.CRITICAL
+        )
         self.send(
             level,
             f"CIRCUIT BREAKER: {action} triggered. {reason}",
-            context={"current_value_pct": round(current_value * 100, 2), "threshold_pct": round(threshold * 100, 2)},
+            context={
+                "current_value_pct": round(current_value * 100, 2),
+                "threshold_pct": round(threshold * 100, 2),
+            },
         )
 
     def order_rejected(self, ticker: str, strategy_id: str, reason: str) -> None:
@@ -216,7 +233,7 @@ class AlertManager:
 
 
 # ── Singleton instance ────────────────────────────────────────────────────────
-_alert_manager: Optional[AlertManager] = None
+_alert_manager: AlertManager | None = None
 
 
 def get_alert_manager() -> AlertManager:
@@ -225,6 +242,7 @@ def get_alert_manager() -> AlertManager:
     if _alert_manager is None:
         _alert_manager = AlertManager()
         from worfin.config.settings import get_settings
+
         settings = get_settings()
         if settings.telegram_bot_token and settings.telegram_chat_id:
             _alert_manager.configure(settings.telegram_bot_token, settings.telegram_chat_id)

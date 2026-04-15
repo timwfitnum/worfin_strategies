@@ -10,13 +10,13 @@ If ANY check fails:
 
 This module is the last line of defence before real orders hit the market.
 """
+
 from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
-from typing import Optional
 
 from worfin.config.metals import ALL_METALS
 from worfin.risk.limits import (
@@ -27,7 +27,6 @@ from worfin.risk.limits import (
     MAX_PORTFOLIO_NET,
     MAX_SIGNAL_AGE_HOURS,
     MAX_SINGLE_METAL_PCT,
-    MIN_POSITION_NOTIONAL_GBP,
 )
 
 logger = logging.getLogger(__name__)
@@ -36,7 +35,7 @@ logger = logging.getLogger(__name__)
 class CheckStatus(str, Enum):
     PASS = "PASS"
     FAIL = "FAIL"
-    SKIP = "SKIP"   # Check not applicable for this order type
+    SKIP = "SKIP"  # Check not applicable for this order type
 
 
 @dataclass
@@ -44,13 +43,14 @@ class CheckResult:
     check_name: str
     status: CheckStatus
     message: str
-    actual_value: Optional[float] = None
-    limit_value: Optional[float] = None
+    actual_value: float | None = None
+    limit_value: float | None = None
 
 
 @dataclass
 class PreTradeResult:
     """Result of running all pre-trade checks on a proposed order."""
+
     ticker: str
     strategy_id: str
     proposed_lots: int
@@ -60,7 +60,9 @@ class PreTradeResult:
 
     @property
     def all_passed(self) -> bool:
-        return all(c.status == CheckStatus.PASS for c in self.checks if c.status != CheckStatus.SKIP)
+        return all(
+            c.status == CheckStatus.PASS for c in self.checks if c.status != CheckStatus.SKIP
+        )
 
     @property
     def failed_checks(self) -> list[CheckResult]:
@@ -76,12 +78,13 @@ class PreTradeResult:
 @dataclass
 class PortfolioState:
     """Current portfolio state needed for pre-trade checks."""
+
     nav_gbp: float
-    current_positions: dict[str, float]         # {ticker: notional_gbp signed}
+    current_positions: dict[str, float]  # {ticker: notional_gbp signed}
     current_orders_today: int
     gross_exposure_gbp: float
     net_exposure_gbp: float
-    average_daily_volume: dict[str, float]       # {ticker: ADV in lots}
+    average_daily_volume: dict[str, float]  # {ticker: ADV in lots}
 
 
 class PreTradeChecker:
@@ -99,7 +102,7 @@ class PreTradeChecker:
         current_mid_price: float,
         order_price: float,
         signal_timestamp: datetime,
-        signal_direction: int,              # +1 long, -1 short
+        signal_direction: int,  # +1 long, -1 short
         portfolio: PortfolioState,
         usd_gbp_rate: float = 1.27,
     ) -> PreTradeResult:
@@ -111,7 +114,7 @@ class PreTradeChecker:
         """
         proposed_notional_gbp = abs(proposed_notional_usd) / usd_gbp_rate
         metal = ALL_METALS.get(ticker)
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         result = PreTradeResult(
             ticker=ticker,
@@ -360,9 +363,9 @@ class PreTradeChecker:
 
     def _check_signal_staleness(self, signal_timestamp: datetime) -> CheckResult:
         """Check 8: Signal is less than 24 hours old."""
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         if signal_timestamp.tzinfo is None:
-            signal_timestamp = signal_timestamp.replace(tzinfo=timezone.utc)
+            signal_timestamp = signal_timestamp.replace(tzinfo=UTC)
         age_hours = (now - signal_timestamp).total_seconds() / 3600
 
         if age_hours > MAX_SIGNAL_AGE_HOURS:

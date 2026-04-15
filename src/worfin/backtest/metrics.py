@@ -12,14 +12,13 @@ Key statistical note:
   A Sharpe of 0.8 on 3 years of data (t≈1.4) is not statistically significant.
   Minimum t-stat: 3.0 IS, 2.0 OOS (Harvey, Liu & Zhu, 2016).
 """
+
 from __future__ import annotations
 
-import math
 import logging
+import math
 from dataclasses import dataclass, field
-from typing import Optional
 
-import numpy as np
 import pandas as pd
 
 logger = logging.getLogger(__name__)
@@ -33,17 +32,17 @@ RISK_FREE_RATE = 0.04  # 4% — approximate UK base rate; update annually
 
 THRESHOLDS = {
     "IS": {
-        "sharpe_ratio":  0.50,
-        "max_drawdown":  0.20,   # Max acceptable (lower is better)
+        "sharpe_ratio": 0.50,
+        "max_drawdown": 0.20,  # Max acceptable (lower is better)
         "t_stat_sharpe": 3.00,
     },
     "OOS": {
-        "sharpe_ratio":  0.30,
-        "max_drawdown":  0.15,
+        "sharpe_ratio": 0.30,
+        "max_drawdown": 0.15,
         "t_stat_sharpe": 2.00,
-        "wfer":          0.50,
-        "pbo":           0.20,   # Must be BELOW this (lower = less overfitted)
-        "calmar_ratio":  0.50,
+        "wfer": 0.50,
+        "pbo": 0.20,  # Must be BELOW this (lower = less overfitted)
+        "calmar_ratio": 0.50,
     },
 }
 
@@ -52,7 +51,7 @@ THRESHOLDS = {
 class PerformanceMetrics:
     """Full set of performance metrics for one strategy / one period."""
 
-    period: str                    # "IS", "OOS", "Holdout", "Paper", "Live"
+    period: str  # "IS", "OOS", "Holdout", "Paper", "Live"
     strategy_id: str
     start_date: str
     end_date: str
@@ -83,11 +82,11 @@ class PerformanceMetrics:
     annual_turnover: float
 
     # Statistical significance
-    t_stat_sharpe: float           # Sharpe × √N_independent
+    t_stat_sharpe: float  # Sharpe × √N_independent
 
     # Overfitting metrics (OOS only)
-    wfer: Optional[float] = None   # Walk-Forward Efficiency Ratio
-    pbo: Optional[float] = None    # Probability of Backtest Overfitting
+    wfer: float | None = None  # Walk-Forward Efficiency Ratio
+    pbo: float | None = None  # Probability of Backtest Overfitting
 
     # Gate pass/fail
     gate_results: dict[str, bool] = field(default_factory=dict)
@@ -109,7 +108,7 @@ class PerformanceMetrics:
         if "wfer" in thresholds and self.wfer is not None:
             gates["wfer"] = self.wfer >= thresholds["wfer"]
         if "pbo" in thresholds and self.pbo is not None:
-            gates["pbo"] = self.pbo <= thresholds["pbo"]   # BELOW threshold
+            gates["pbo"] = self.pbo <= thresholds["pbo"]  # BELOW threshold
         if "calmar_ratio" in thresholds:
             gates["calmar_ratio"] = self.calmar_ratio >= thresholds["calmar_ratio"]
 
@@ -121,9 +120,7 @@ class PerformanceMetrics:
 
     def summary(self) -> str:
         """Human-readable performance summary for reports."""
-        gate_str = " | ".join(
-            f"{'✅' if v else '❌'} {k}" for k, v in self.gate_results.items()
-        )
+        gate_str = " | ".join(f"{'✅' if v else '❌'} {k}" for k, v in self.gate_results.items())
         return (
             f"[{self.period}] {self.strategy_id} | {self.start_date} → {self.end_date}\n"
             f"  Return: {self.annualised_return:.1%} | Vol: {self.annualised_vol:.1%} "
@@ -139,9 +136,9 @@ def compute_metrics(
     returns: pd.Series,
     period: str,
     strategy_id: str,
-    trade_log: Optional[pd.DataFrame] = None,
-    wfer: Optional[float] = None,
-    pbo: Optional[float] = None,
+    trade_log: pd.DataFrame | None = None,
+    wfer: float | None = None,
+    pbo: float | None = None,
 ) -> PerformanceMetrics:
     """
     Compute the full set of performance metrics from a daily return series.
@@ -163,7 +160,9 @@ def compute_metrics(
     if len(returns) < 20:
         logger.error(
             "Cannot compute metrics for %s %s: only %d observations (need ≥20).",
-            strategy_id, period, len(returns),
+            strategy_id,
+            period,
+            len(returns),
         )
         raise ValueError(f"Insufficient data: {len(returns)} observations")
 
@@ -182,7 +181,11 @@ def compute_metrics(
 
     # Sortino: uses downside deviation (below 0, not below risk-free rate)
     downside_returns = returns[returns < 0]
-    downside_vol = float(downside_returns.std() * math.sqrt(ann_factor)) if len(downside_returns) > 1 else annualised_vol
+    downside_vol = (
+        float(downside_returns.std() * math.sqrt(ann_factor))
+        if len(downside_returns) > 1
+        else annualised_vol
+    )
     sortino = float(annualised_return / downside_vol) if downside_vol > 0 else 0.0
 
     # ── Drawdown ──────────────────────────────────────────────────────────────
@@ -190,8 +193,12 @@ def compute_metrics(
     rolling_max = cum_returns.cummax()
     drawdown_series = (cum_returns - rolling_max) / rolling_max
 
-    max_drawdown = float(drawdown_series.min()) * -1   # Positive number for display
-    avg_drawdown = float(drawdown_series[drawdown_series < 0].mean()) * -1 if (drawdown_series < 0).any() else 0.0
+    max_drawdown = float(drawdown_series.min()) * -1  # Positive number for display
+    avg_drawdown = (
+        float(drawdown_series[drawdown_series < 0].mean()) * -1
+        if (drawdown_series < 0).any()
+        else 0.0
+    )
 
     calmar = float(annualised_return / max_drawdown) if max_drawdown > 0 else 0.0
 
@@ -209,9 +216,19 @@ def compute_metrics(
         win_rate = float((trade_log["return"] > 0).mean())
         profit_factor = _compute_profit_factor(trade_log["return"])
         avg_trade_return = float(trade_log["return"].mean())
-        avg_win = float(trade_log.loc[trade_log["return"] > 0, "return"].mean()) if (trade_log["return"] > 0).any() else 0.0
-        avg_loss = float(trade_log.loc[trade_log["return"] < 0, "return"].mean()) if (trade_log["return"] < 0).any() else 0.0
-        avg_holding_days = float(trade_log["holding_days"].mean()) if "holding_days" in trade_log.columns else 0.0
+        avg_win = (
+            float(trade_log.loc[trade_log["return"] > 0, "return"].mean())
+            if (trade_log["return"] > 0).any()
+            else 0.0
+        )
+        avg_loss = (
+            float(trade_log.loc[trade_log["return"] < 0, "return"].mean())
+            if (trade_log["return"] < 0).any()
+            else 0.0
+        )
+        avg_holding_days = (
+            float(trade_log["holding_days"].mean()) if "holding_days" in trade_log.columns else 0.0
+        )
         annual_turnover = float(len(trade_log) / years)
     else:
         # Approximate from return series
@@ -227,8 +244,16 @@ def compute_metrics(
     return PerformanceMetrics(
         period=period,
         strategy_id=strategy_id,
-        start_date=str(returns.index[0].date()) if hasattr(returns.index[0], 'date') else str(returns.index[0]),
-        end_date=str(returns.index[-1].date()) if hasattr(returns.index[-1], 'date') else str(returns.index[-1]),
+        start_date=(
+            str(returns.index[0].date())
+            if hasattr(returns.index[0], "date")
+            else str(returns.index[0])
+        ),
+        end_date=(
+            str(returns.index[-1].date())
+            if hasattr(returns.index[-1], "date")
+            else str(returns.index[-1])
+        ),
         n_trading_days=n,
         total_return=total_return,
         annualised_return=annualised_return,
@@ -265,7 +290,9 @@ def compute_wfer(is_sharpe: float, oos_sharpe: float) -> float:
     Minimum acceptable: 0.50
     """
     if is_sharpe <= 0:
-        logger.warning("IS Sharpe is <= 0 (%.2f) — WFER undefined. Strategy failed IS gate.", is_sharpe)
+        logger.warning(
+            "IS Sharpe is <= 0 (%.2f) — WFER undefined. Strategy failed IS gate.", is_sharpe
+        )
         return 0.0
     return oos_sharpe / is_sharpe
 
@@ -304,8 +331,18 @@ def monthly_return_heatmap(returns: pd.Series) -> pd.DataFrame:
     df["month"] = df.index.month
     heatmap = df.pivot(index="year", columns="month", values="return")
     heatmap.columns = [
-        "Jan", "Feb", "Mar", "Apr", "May", "Jun",
-        "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"
+        "Jan",
+        "Feb",
+        "Mar",
+        "Apr",
+        "May",
+        "Jun",
+        "Jul",
+        "Aug",
+        "Sep",
+        "Oct",
+        "Nov",
+        "Dec",
     ]
     return heatmap
 

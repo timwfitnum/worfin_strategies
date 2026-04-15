@@ -7,11 +7,11 @@ Free tier supports the full dataset needed for IS + OOS periods.
 
 Data stored in: raw_data schema (append-only — never modify after insert).
 """
+
 from __future__ import annotations
 
 import logging
 from datetime import date, datetime
-from typing import Optional
 
 import nasdaqdatalink
 import pandas as pd
@@ -32,44 +32,44 @@ logger = logging.getLogger(__name__)
 NASDAQ_CODES: dict[str, dict[str, str]] = {
     # LME Base Metals (via LME database or CHRIS)
     "CA": {
-        "front":  "CHRIS/LME_CA1",   # LME Copper, 1st month
-        "second": "CHRIS/LME_CA2",   # LME Copper, 2nd month
+        "front": "CHRIS/LME_CA1",  # LME Copper, 1st month
+        "second": "CHRIS/LME_CA2",  # LME Copper, 2nd month
     },
     "AH": {
-        "front":  "CHRIS/LME_AH1",
+        "front": "CHRIS/LME_AH1",
         "second": "CHRIS/LME_AH2",
     },
     "ZS": {
-        "front":  "CHRIS/LME_ZS1",
+        "front": "CHRIS/LME_ZS1",
         "second": "CHRIS/LME_ZS2",
     },
     "NI": {
-        "front":  "CHRIS/LME_NI1",
+        "front": "CHRIS/LME_NI1",
         "second": "CHRIS/LME_NI2",
     },
     "PB": {
-        "front":  "CHRIS/LME_PB1",
+        "front": "CHRIS/LME_PB1",
         "second": "CHRIS/LME_PB2",
     },
     "SN": {
-        "front":  "CHRIS/LME_SN1",
+        "front": "CHRIS/LME_SN1",
         "second": "CHRIS/LME_SN2",
     },
     # COMEX Precious Metals
     "GC": {
-        "front":  "CHRIS/CME_GC1",   # COMEX Gold
+        "front": "CHRIS/CME_GC1",  # COMEX Gold
         "second": "CHRIS/CME_GC2",
     },
     "SI": {
-        "front":  "CHRIS/CME_SI1",   # COMEX Silver
+        "front": "CHRIS/CME_SI1",  # COMEX Silver
         "second": "CHRIS/CME_SI2",
     },
     "PL": {
-        "front":  "CHRIS/CME_PL1",   # COMEX Platinum
+        "front": "CHRIS/CME_PL1",  # COMEX Platinum
         "second": "CHRIS/CME_PL2",
     },
     "PA": {
-        "front":  "CHRIS/CME_PA1",   # COMEX Palladium
+        "front": "CHRIS/CME_PA1",  # COMEX Palladium
         "second": "CHRIS/CME_PA2",
     },
 }
@@ -144,7 +144,11 @@ def fetch_continuous_futures(
 
         logger.info(
             "Fetched %d rows for %s %s (%s → %s)",
-            len(raw), ticker, contract, raw.index.min().date(), raw.index.max().date()
+            len(raw),
+            ticker,
+            contract,
+            raw.index.min().date(),
+            raw.index.max().date(),
         )
         return raw
 
@@ -156,7 +160,7 @@ def fetch_continuous_futures(
 def fetch_all_metals(
     start_date: date,
     end_date: date,
-    tickers: Optional[list[str]] = None,
+    tickers: list[str] | None = None,
 ) -> dict[str, dict[str, pd.DataFrame]]:
     """
     Fetch front-month and second-month data for all (or specified) metals.
@@ -186,21 +190,22 @@ def fetch_all_metals(
 
     if errors:
         logger.warning(
-            "Fetch completed with %d failures: %s. "
-            "Check API key and dataset availability.",
-            len(errors), errors,
+            "Fetch completed with %d failures: %s. " "Check API key and dataset availability.",
+            len(errors),
+            errors,
         )
     else:
         logger.info(
             "All metals fetched successfully. Date range: %s to %s.",
-            start_date, end_date,
+            start_date,
+            end_date,
         )
 
     return result
 
 
 def fetch_for_backtest(
-    tickers: Optional[list[str]] = None,
+    tickers: list[str] | None = None,
 ) -> dict[str, dict[str, pd.DataFrame]]:
     """
     Convenience function: fetch the full IS + OOS backtest history (2005–2022).

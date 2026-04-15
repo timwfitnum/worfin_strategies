@@ -2,6 +2,7 @@
 tests/test_strategies/test_s4_basis_momentum.py
 Unit tests for S4 Basis-Momentum strategy.
 """
+
 from __future__ import annotations
 
 from datetime import date
@@ -10,13 +11,13 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from worfin.strategies.s4_basis_momentum import BasisMomentumStrategy, S4_CONFIG
+from worfin.strategies.s4_basis_momentum import S4_CONFIG, BasisMomentumStrategy
 
 
 def make_sample_data(
     n_days: int = 100,
     base_price: float = 9000.0,
-    carry_bps: float = 50,       # Positive = backwardation
+    carry_bps: float = 50,  # Positive = backwardation
 ) -> pd.DataFrame:
     """Create minimal sample DataFrame for a single metal."""
     dates = pd.bdate_range(end="2020-06-30", periods=n_days)
@@ -24,12 +25,15 @@ def make_sample_data(
     cash = prices
     f3m = prices * (1 - carry_bps / 10_000 * (91 / 365))  # Slight backwardation
 
-    return pd.DataFrame({
-        "close": prices,
-        "cash_price": cash,
-        "f3m_price": f3m,
-        "f3m_dte": 91,
-    }, index=dates)
+    return pd.DataFrame(
+        {
+            "close": prices,
+            "cash_price": cash,
+            "f3m_price": f3m,
+            "f3m_dte": 91,
+        },
+        index=dates,
+    )
 
 
 @pytest.fixture
@@ -43,9 +47,16 @@ def sample_data():
     np.random.seed(42)
     data = {}
     base_prices = {
-        "CA": 9000, "AH": 2200, "ZS": 2800, "NI": 15000,
-        "PB": 1900, "SN": 25000, "GC": 1800, "SI": 24,
-        "PL": 950, "PA": 2000,
+        "CA": 9000,
+        "AH": 2200,
+        "ZS": 2800,
+        "NI": 15000,
+        "PB": 1900,
+        "SN": 25000,
+        "GC": 1800,
+        "SI": 24,
+        "PL": 950,
+        "PA": 2000,
     }
     for ticker, price in base_prices.items():
         data[ticker] = make_sample_data(base_price=price)
@@ -59,9 +70,9 @@ class TestS4SignalRange:
         result = strategy.run(sample_data, as_of_date=date(2020, 6, 30))
         assert result.is_valid
         for ticker, signal in result.signals.items():
-            assert -1.0 - 1e-9 <= signal <= 1.0 + 1e-9, (
-                f"Signal for {ticker} = {signal:.4f} is outside [-1, +1]"
-            )
+            assert (
+                -1.0 - 1e-9 <= signal <= 1.0 + 1e-9
+            ), f"Signal for {ticker} = {signal:.4f} is outside [-1, +1]"
 
     def test_signals_are_cross_sectionally_zero_mean(self, strategy, sample_data):
         """Cross-sectional signals should average close to zero."""
@@ -81,12 +92,15 @@ class TestS4InteractionTerm:
         dates = pd.bdate_range(end="2020-06-30", periods=n)
         # Upward trending price (positive momentum) + backwardation (positive carry)
         prices = pd.Series(9000 * (1 + np.linspace(0, 0.2, n)), index=dates)
-        df_bullish = pd.DataFrame({
-            "close": prices,
-            "cash_price": prices * 1.02,   # Cash > 3M = backwardation
-            "f3m_price": prices,
-            "f3m_dte": 91,
-        }, index=dates)
+        df_bullish = pd.DataFrame(
+            {
+                "close": prices,
+                "cash_price": prices * 1.02,  # Cash > 3M = backwardation
+                "f3m_price": prices,
+                "f3m_dte": 91,
+            },
+            index=dates,
+        )
 
         # All metals bullish
         data = {t: df_bullish.copy() for t in strategy.universe}
@@ -110,7 +124,7 @@ class TestS4DataValidation:
     def test_insufficient_history_excluded(self, strategy):
         """Ticker with < 70 days of history gets 0 signal."""
         data = {t: make_sample_data(n_days=100) for t in S4_CONFIG.universe}
-        data["GC"] = make_sample_data(n_days=30)   # Too little history
+        data["GC"] = make_sample_data(n_days=30)  # Too little history
 
         result = strategy.run(data, as_of_date=date(2020, 6, 30))
         assert result.signals["GC"] == 0.0 or "GC" in result.invalid_tickers

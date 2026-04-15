@@ -5,11 +5,11 @@ Exchange holiday calendars and trading day utilities.
 LME holidays: https://www.lme.com/en/market-data/LME-trading-calendar
 COMEX holidays: https://www.cmegroup.com/tools-information/holiday-calendar
 """
+
 from __future__ import annotations
 
 import datetime
 from functools import lru_cache
-
 
 # ─────────────────────────────────────────────────────────────────────────────
 # HOLIDAY DEFINITIONS
@@ -18,51 +18,51 @@ from functools import lru_cache
 # Update annually. Source from exchange websites each December.
 
 _LME_HOLIDAYS_2025 = [
-    datetime.date(2025, 1, 1),   # New Year's Day
+    datetime.date(2025, 1, 1),  # New Year's Day
     datetime.date(2025, 4, 18),  # Good Friday
     datetime.date(2025, 4, 21),  # Easter Monday
-    datetime.date(2025, 5, 5),   # Early May Bank Holiday
+    datetime.date(2025, 5, 5),  # Early May Bank Holiday
     datetime.date(2025, 5, 26),  # Spring Bank Holiday
     datetime.date(2025, 8, 25),  # Summer Bank Holiday
-    datetime.date(2025, 12, 25), # Christmas Day
-    datetime.date(2025, 12, 26), # Boxing Day
+    datetime.date(2025, 12, 25),  # Christmas Day
+    datetime.date(2025, 12, 26),  # Boxing Day
 ]
 
 _LME_HOLIDAYS_2026 = [
-    datetime.date(2026, 1, 1),   # New Year's Day
-    datetime.date(2026, 4, 3),   # Good Friday
-    datetime.date(2026, 4, 6),   # Easter Monday
-    datetime.date(2026, 5, 4),   # Early May Bank Holiday
+    datetime.date(2026, 1, 1),  # New Year's Day
+    datetime.date(2026, 4, 3),  # Good Friday
+    datetime.date(2026, 4, 6),  # Easter Monday
+    datetime.date(2026, 5, 4),  # Early May Bank Holiday
     datetime.date(2026, 5, 25),  # Spring Bank Holiday
     datetime.date(2026, 8, 31),  # Summer Bank Holiday
-    datetime.date(2026, 12, 25), # Christmas Day
-    datetime.date(2026, 12, 28), # Boxing Day (substitute)
+    datetime.date(2026, 12, 25),  # Christmas Day
+    datetime.date(2026, 12, 28),  # Boxing Day (substitute)
 ]
 
 _COMEX_HOLIDAYS_2025 = [
-    datetime.date(2025, 1, 1),   # New Year's Day
+    datetime.date(2025, 1, 1),  # New Year's Day
     datetime.date(2025, 1, 20),  # Martin Luther King Jr. Day
     datetime.date(2025, 2, 17),  # Presidents' Day
     datetime.date(2025, 4, 18),  # Good Friday
     datetime.date(2025, 5, 26),  # Memorial Day
     datetime.date(2025, 6, 19),  # Juneteenth
-    datetime.date(2025, 7, 4),   # Independence Day
-    datetime.date(2025, 9, 1),   # Labor Day
-    datetime.date(2025, 11, 27), # Thanksgiving
-    datetime.date(2025, 12, 25), # Christmas Day
+    datetime.date(2025, 7, 4),  # Independence Day
+    datetime.date(2025, 9, 1),  # Labor Day
+    datetime.date(2025, 11, 27),  # Thanksgiving
+    datetime.date(2025, 12, 25),  # Christmas Day
 ]
 
 _COMEX_HOLIDAYS_2026 = [
-    datetime.date(2026, 1, 1),   # New Year's Day
+    datetime.date(2026, 1, 1),  # New Year's Day
     datetime.date(2026, 1, 19),  # Martin Luther King Jr. Day
     datetime.date(2026, 2, 16),  # Presidents' Day
-    datetime.date(2026, 4, 3),   # Good Friday
+    datetime.date(2026, 4, 3),  # Good Friday
     datetime.date(2026, 5, 25),  # Memorial Day
     datetime.date(2026, 6, 19),  # Juneteenth
-    datetime.date(2026, 7, 3),   # Independence Day (observed)
-    datetime.date(2026, 9, 7),   # Labor Day
-    datetime.date(2026, 11, 26), # Thanksgiving
-    datetime.date(2026, 12, 25), # Christmas Day
+    datetime.date(2026, 7, 3),  # Independence Day (observed)
+    datetime.date(2026, 9, 7),  # Labor Day
+    datetime.date(2026, 11, 26),  # Thanksgiving
+    datetime.date(2026, 12, 25),  # Christmas Day
 ]
 
 LME_HOLIDAYS: set[datetime.date] = set(_LME_HOLIDAYS_2025 + _LME_HOLIDAYS_2026)
@@ -74,9 +74,10 @@ ALL_HOLIDAYS: set[datetime.date] = LME_HOLIDAYS | COMEX_HOLIDAYS
 # CALENDAR UTILITIES
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 def is_lme_trading_day(d: datetime.date) -> bool:
     """True if LME is open on this date."""
-    return d.weekday() < 5 and d not in LME_HOLIDAYS   # Mon–Fri, not holiday
+    return d.weekday() < 5 and d not in LME_HOLIDAYS  # Mon–Fri, not holiday
 
 
 def is_comex_trading_day(d: datetime.date) -> bool:
@@ -133,7 +134,7 @@ def compute_lme_3m_prompt(cash_date: datetime.date) -> datetime.date:
     Returns:
         The 3-Month prompt date
     """
-    target = cash_date + datetime.timedelta(days=91)   # approx 3 calendar months
+    target = cash_date + datetime.timedelta(days=91)  # approx 3 calendar months
 
     # Find nearest LME business day
     forward = target

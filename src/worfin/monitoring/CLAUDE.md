@@ -76,7 +76,7 @@ async def daily_reconciliation():
     """
     Compare internal state vs broker reality.
     Block new orders until any discrepancy is resolved.
-    
+
     Discrepancy threshold: > £100 OR > 0.1% of position notional
     """
 

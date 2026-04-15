@@ -10,11 +10,12 @@ All actions are logged to audit.risk_breaches with full context.
 
 The kill switch must work even if the main execution process is hung.
 """
+
 from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from datetime import date, datetime
+from datetime import datetime
 from enum import Enum
 
 from worfin.risk.limits import (
@@ -37,23 +38,25 @@ logger = logging.getLogger(__name__)
 
 class CircuitBreakerAction(str, Enum):
     """Actions the circuit breaker can trigger."""
-    NONE = "NONE"                    # All clear — no action
-    WARN = "WARN"                    # Warning — approaching limit
+
+    NONE = "NONE"  # All clear — no action
+    WARN = "WARN"  # Warning — approaching limit
     REDUCE_50_PCT = "REDUCE_50_PCT"  # Reduce all positions to 50%
     REDUCE_25_PCT = "REDUCE_25_PCT"  # Reduce all positions to 25%
-    FLATTEN_ALL = "FLATTEN_ALL"      # Flatten all positions immediately
-    FULL_SUSPEND = "FULL_SUSPEND"    # Full suspension — human review required
-    HARD_STOP = "HARD_STOP"         # Full liquidation + system shutdown
+    FLATTEN_ALL = "FLATTEN_ALL"  # Flatten all positions immediately
+    FULL_SUSPEND = "FULL_SUSPEND"  # Full suspension — human review required
+    HARD_STOP = "HARD_STOP"  # Full liquidation + system shutdown
 
 
 @dataclass
 class CircuitBreakerResult:
     """Result of a circuit breaker check."""
+
     action: CircuitBreakerAction
-    triggered_by: str          # Which limit was breached
-    threshold: float           # The limit value
-    current_value: float       # The current P&L / drawdown value
-    severity: str              # "warning" | "breach"
+    triggered_by: str  # Which limit was breached
+    threshold: float  # The limit value
+    current_value: float  # The current P&L / drawdown value
+    severity: str  # "warning" | "breach"
     message: str
     timestamp: datetime
     requires_human_review: bool = False
@@ -66,11 +69,12 @@ class CircuitBreakerResult:
 @dataclass
 class PortfolioPnL:
     """Current P&L state for circuit breaker evaluation."""
-    nav: float                    # Current NAV in GBP
-    daily_pnl: float              # Today's P&L in GBP
-    weekly_pnl: float             # This week's P&L in GBP
-    month_start_nav: float        # NAV at start of current calendar month
-    all_time_hwm: float           # All-time high watermark in GBP
+
+    nav: float  # Current NAV in GBP
+    daily_pnl: float  # Today's P&L in GBP
+    weekly_pnl: float  # This week's P&L in GBP
+    month_start_nav: float  # NAV at start of current calendar month
+    all_time_hwm: float  # All-time high watermark in GBP
     as_of: datetime
 
     @property
@@ -282,8 +286,11 @@ class CircuitBreaker:
         )
 
     def _log_result(self, result: CircuitBreakerResult) -> None:
-        if result.action in (CircuitBreakerAction.HARD_STOP, CircuitBreakerAction.FULL_SUSPEND,
-                             CircuitBreakerAction.FLATTEN_ALL):
+        if result.action in (
+            CircuitBreakerAction.HARD_STOP,
+            CircuitBreakerAction.FULL_SUSPEND,
+            CircuitBreakerAction.FLATTEN_ALL,
+        ):
             logger.critical("CIRCUIT BREAKER: %s", result.message)
         elif result.severity == "breach":
             logger.error("CIRCUIT BREAKER: %s", result.message)
