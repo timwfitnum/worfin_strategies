@@ -1,53 +1,70 @@
-[tool.black]
-line-length = 100
-target-version = ['py311']
-include = '\.pyi?$'
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
 
-[tool.ruff]
-line-length = 100
-target-version = "py311"
-select = [
-    "E",   # pycodestyle errors
-    "W",   # pycodestyle warnings
-    "F",   # pyflakes
-    "I",   # isort
-    "N",   # pep8-naming
-    "UP",  # pyupgrade
-    "B",   # flake8-bugbear
-    "C4",  # flake8-comprehensions
-    "SIM", # flake8-simplify
+[project]
+name = "worfin"
+version = "0.1.0"
+description = "WorFIn — Worthington-Fitnum Investments Systematic Trading System"
+requires-python = ">=3.11"
+dependencies = [
+    "pandas>=2.2.3",
+    "numpy>=1.26.4",
+    "scipy>=1.13.1",
+    "statsmodels>=0.14.2",
+    "python-dotenv>=1.0.1",
+    "pydantic>=2.7.4",
+    "pydantic-settings>=2.3.4",
+    "sqlalchemy>=2.0.31",
+    "psycopg2-binary>=2.9.9",
+    "alembic>=1.13.2",
+    "arch>=7.0.0",
+    "empyrical>=0.5.5",
+    "requests>=2.32.3",
+    "aiohttp>=3.10.5",
+    "APScheduler>=3.10.4",
+    "structlog>=24.4.0",
 ]
-ignore = [
-    "E501",  # line too long (handled by black)
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.3.3",
+    "pytest-asyncio>=0.24.0",
+    "pytest-cov>=5.0.0",
+    "hypothesis>=6.112.1",
+    "black>=24.8.0",
+    "ruff>=0.6.9",
+    "mypy>=1.11.2",
+    "pre-commit>=3.8.0",
+]
+data = [
+    "nasdaq-data-link>=1.0.4",
+    "yfinance>=0.2.41",
+    "fredapi>=0.5.2",
+    "cot-reports>=0.1.1",
+]
+broker = [
+    "ib-insync>=0.9.86",
+]
+monitoring = [
+    "python-telegram-bot>=21.6",
+]
+all = [
+    "worfin[data,broker,monitoring]",
 ]
 
-[tool.ruff.per-file-ignores]
-"tests/*" = ["N802", "N803"]  # Allow non-PEP8 names in tests
-
-[tool.mypy]
-python_version = "3.11"
-strict = true
-ignore_missing_imports = true
-warn_return_any = true
-warn_unused_configs = true
-disallow_untyped_defs = true
+[tool.hatch.build.targets.wheel]
+packages = ["src/worfin"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+pythonpath = ["src"]          # ← Key line: fixes all pytest import issues
 asyncio_mode = "auto"
-addopts = "-v --tb=short --cov=. --cov-report=term-missing"
-filterwarnings = [
-    "ignore::DeprecationWarning",
-]
-pythonpath = ["src"]
+addopts = "-v --tb=short --cov=src/worfin --cov-report=term-missing"
 
 [tool.coverage.run]
-source = ["."]
-omit = [
-    ".venv/*",
-    "tests/*",
-    "alembic/*",
-]
+source = ["src/worfin"]
+omit = ["tests/*", "alembic/*", "scripts/*"]
 branch = true
 
 [tool.coverage.report]
@@ -57,3 +74,23 @@ exclude_lines = [
     "raise NotImplementedError",
     "if TYPE_CHECKING:",
 ]
+
+[tool.black]
+line-length = 100
+target-version = ["py311"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+select = ["E", "F", "I", "N", "UP", "B", "C4", "SIM"]
+ignore = ["E501"]
+
+[tool.ruff.per-file-ignores]
+"tests/*" = ["N802", "N803"]
+
+[tool.mypy]
+python_version = "3.11"
+strict = true
+ignore_missing_imports = true
+warn_return_any = true
+disallow_untyped_defs = true

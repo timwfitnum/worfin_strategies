@@ -7,7 +7,6 @@ Sources:
   LME contract specs: https://www.lme.com/metals
   COMEX specs: https://www.cmegroup.com/markets/metals
 """
-
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -20,32 +19,32 @@ class Exchange(str, Enum):
 
 
 class LiquidityTier(int, Enum):
-    HIGH = 1  # Tightest spreads, deepest book, max 5% ADV
+    HIGH = 1    # Tightest spreads, deepest book, max 5% ADV
     MEDIUM = 2  # Moderate spreads, max 3% ADV
-    LOW = 3  # Widest spreads, max 2% ADV — extra caution
+    LOW = 3     # Widest spreads, max 2% ADV — extra caution
 
 
 @dataclass(frozen=True)
 class MetalSpec:
     """Immutable specification for a single metal futures contract."""
 
-    ticker: str  # Internal ticker (e.g., "CA" for LME Copper)
-    name: str  # Full name
+    ticker: str          # Internal ticker (e.g., "CA" for LME Copper)
+    name: str            # Full name
     exchange: Exchange
-    lot_size: float  # Contract lot size in base unit
-    unit: str  # "tonnes", "oz", etc.
+    lot_size: float      # Contract lot size in base unit
+    unit: str            # "tonnes", "oz", etc.
     quote_currency: str  # Always USD
-    tick_size: float  # Minimum price move
-    tick_value: float  # USD value of one tick per contract
+    tick_size: float     # Minimum price move
+    tick_value: float    # USD value of one tick per contract
     liquidity_tier: LiquidityTier
-    ibkr_symbol: str  # Symbol as used in IBKR
-    ibkr_exchange: str  # Exchange as IBKR expects it
-    ibkr_currency: str  # Contract currency
+    ibkr_symbol: str     # Symbol as used in IBKR
+    ibkr_exchange: str   # Exchange as IBKR expects it
+    ibkr_currency: str   # Contract currency
     # Roll mechanics
     roll_days_before_fnc: int  # Days before First Notice/Cash prompt to roll
     # Execution costs (round-trip basis points)
     spread_bps: float
-    commission_usd: float  # Per contract, round-trip
+    commission_usd: float      # Per contract, round-trip
     slippage_bps: float
 
 
@@ -64,10 +63,10 @@ COPPER = MetalSpec(
     unit="tonnes",
     quote_currency="USD",
     tick_size=0.50,
-    tick_value=12.50,  # $0.50/tonne × 25 tonnes
+    tick_value=12.50,   # $0.50/tonne × 25 tonnes
     liquidity_tier=LiquidityTier.HIGH,
     ibkr_symbol="HG",
-    ibkr_exchange="NYMEX",  # IBKR routes LME metals via CME equivalent
+    ibkr_exchange="NYMEX",   # IBKR routes LME metals via CME equivalent
     ibkr_currency="USD",
     roll_days_before_fnc=3,
     spread_bps=3.0,
@@ -121,7 +120,7 @@ NICKEL = MetalSpec(
     unit="tonnes",
     quote_currency="USD",
     tick_size=1.00,
-    tick_value=6.00,  # $1/tonne × 6 tonnes
+    tick_value=6.00,   # $1/tonne × 6 tonnes
     liquidity_tier=LiquidityTier.MEDIUM,
     ibkr_symbol="NI",
     ibkr_exchange="ICEEU",
@@ -167,7 +166,7 @@ TIN = MetalSpec(
     ibkr_symbol="TIN",
     ibkr_exchange="ICEEU",
     ibkr_currency="USD",
-    roll_days_before_fnc=5,  # Roll earlier — thin book
+    roll_days_before_fnc=5,   # Roll earlier — thin book
     spread_bps=20.0,
     commission_usd=3.00,
     slippage_bps=5.00,
@@ -190,7 +189,7 @@ GOLD = MetalSpec(
     unit="oz",
     quote_currency="USD",
     tick_size=0.10,
-    tick_value=10.00,  # $0.10/oz × 100 oz
+    tick_value=10.00,   # $0.10/oz × 100 oz
     liquidity_tier=LiquidityTier.HIGH,
     ibkr_symbol="GC",
     ibkr_exchange="NYMEX",
@@ -209,7 +208,7 @@ SILVER = MetalSpec(
     unit="oz",
     quote_currency="USD",
     tick_size=0.005,
-    tick_value=25.00,  # $0.005/oz × 5000 oz
+    tick_value=25.00,   # $0.005/oz × 5000 oz
     liquidity_tier=LiquidityTier.HIGH,
     ibkr_symbol="SI",
     ibkr_exchange="NYMEX",
@@ -233,7 +232,7 @@ PLATINUM = MetalSpec(
     ibkr_symbol="PL",
     ibkr_exchange="NYMEX",
     ibkr_currency="USD",
-    roll_days_before_fnc=12,  # Roll earlier — thinner than Pd
+    roll_days_before_fnc=12,   # Roll earlier — thinner than Pd
     spread_bps=6.0,
     commission_usd=3.00,
     slippage_bps=2.00,
@@ -252,7 +251,7 @@ PALLADIUM = MetalSpec(
     ibkr_symbol="PA",
     ibkr_exchange="NYMEX",
     ibkr_currency="USD",
-    roll_days_before_fnc=15,  # Roll earliest — least liquid precious metal
+    roll_days_before_fnc=15,   # Roll earliest — least liquid precious metal
     spread_bps=10.0,
     commission_usd=3.00,
     slippage_bps=3.00,
@@ -296,10 +295,10 @@ S3_UNIVERSE = ["CA", "AH", "ZS", "NI", "PB", "SN", "GC", "SI", "PL", "PA"]
 S4_UNIVERSE = ["CA", "AH", "ZS", "NI", "PB", "SN", "GC", "SI", "PL", "PA"]
 S5_UNIVERSE = ["CA", "AH", "ZS", "NI", "PB", "SN"]  # LME only (inventory data)
 S6_PAIRS = [
-    ("GC", "SI"),  # Gold / Silver — monetary demand
-    ("CA", "AH"),  # Copper / Aluminium — electrical conductors
-    ("PL", "PA"),  # Platinum / Palladium — autocatalysts
-    ("ZS", "PB"),  # Zinc / Lead — co-mined polymetallic
+    ("GC", "SI"),   # Gold / Silver — monetary demand
+    ("CA", "AH"),   # Copper / Aluminium — electrical conductors
+    ("PL", "PA"),   # Platinum / Palladium — autocatalysts
+    ("ZS", "PB"),   # Zinc / Lead — co-mined polymetallic
 ]
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -346,4 +345,4 @@ def get_lots_for_notional(ticker: str, price: float, target_notional: float) -> 
     if price <= 0 or target_notional <= 0:
         return 0
     lot_notional = get_lot_notional(ticker, price)
-    return int(target_notional / lot_notional)  # floor division
+    return int(target_notional / lot_notional)   # floor division
