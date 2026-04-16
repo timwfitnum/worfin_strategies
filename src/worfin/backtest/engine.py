@@ -23,21 +23,20 @@ LOOK-AHEAD BIAS PREVENTION (critical):
   - Carry DTE uses trade date, not settlement date
   - No future prices used for any calculation
 """
+
 from __future__ import annotations
 
 import logging
 from dataclasses import dataclass, field
-from datetime import date, datetime, timedelta, timezone
-from typing import Optional
+from datetime import UTC, date, datetime
 
-import numpy as np
 import pandas as pd
 
-from worfin.backtest.costs import apply_costs_to_returns, COST_BASELINE_MULTIPLIER
+from worfin.backtest.costs import COST_BASELINE_MULTIPLIER
 from worfin.backtest.metrics import PerformanceMetrics, compute_metrics, compute_wfer
-from worfin.config.calendar import is_lme_trading_day, trading_days_between
+from worfin.config.calendar import trading_days_between
 from worfin.data.pipeline.volatility import compute_vol_estimates
-from worfin.risk.limits import STRATEGY_ALLOCATION, STRATEGY_TARGET_VOL, VOL_FLOOR
+from worfin.risk.limits import VOL_FLOOR
 from worfin.risk.sizing import compute_lots
 from worfin.strategies.base import BaseStrategy, SignalResult
 
@@ -46,32 +45,34 @@ logger = logging.getLogger(__name__)
 # ─────────────────────────────────────────────────────────────────────────────
 # FIXED DATA SPLITS — SET ONCE, NEVER CHANGE
 # ─────────────────────────────────────────────────────────────────────────────
-IS_START      = date(2005, 1,  1)
-IS_END        = date(2017, 12, 31)
-OOS_START     = date(2018, 1,  1)
-OOS_END       = date(2022, 12, 31)
-HOLDOUT_START = date(2023, 1,  1)
+IS_START = date(2005, 1, 1)
+IS_END = date(2017, 12, 31)
+OOS_START = date(2018, 1, 1)
+OOS_END = date(2022, 12, 31)
+HOLDOUT_START = date(2023, 1, 1)
 
 
 @dataclass
 class BacktestConfig:
     """Configuration for a single backtest run."""
+
     strategy_id: str
     start_date: date
     end_date: date
-    period_label: str                     # "IS", "OOS", "Holdout"
+    period_label: str  # "IS", "OOS", "Holdout"
     total_capital_gbp: float = 100_000.0
     usd_gbp_rate: float = 1.27
     cost_multiplier: float = COST_BASELINE_MULTIPLIER
-    walk_forward_step_months: int = 6    # Anchored walk-forward step size
-    rebalance_every_n_days: int = 10     # Bi-weekly for S4
+    walk_forward_step_months: int = 6  # Anchored walk-forward step size
+    rebalance_every_n_days: int = 10  # Bi-weekly for S4
 
 
 @dataclass
 class DailyState:
     """State of the portfolio on a single day."""
+
     date: date
-    positions: dict[str, int]            # {ticker: lots (signed)}
+    positions: dict[str, int]  # {ticker: lots (signed)}
     nav_gbp: float
     daily_return: float
     turnover: float
@@ -82,11 +83,12 @@ class DailyState:
 @dataclass
 class BacktestResult:
     """Full results from a backtest run."""
+
     config: BacktestConfig
-    daily_returns: pd.Series             # Indexed by date
+    daily_returns: pd.Series  # Indexed by date
     daily_nav: pd.Series
     daily_states: list[DailyState] = field(default_factory=list)
-    metrics: Optional[PerformanceMetrics] = None
+    metrics: PerformanceMetrics | None = None
     warnings: list[str] = field(default_factory=list)
 
     def compute_metrics(self) -> PerformanceMetrics:
@@ -158,16 +160,16 @@ class WalkForwardEngine:
         """
         logger.info(
             "Starting %s backtest: %s | %s → %s",
-            config.strategy_id, config.period_label,
-            config.start_date, config.end_date,
+            config.strategy_id,
+            config.period_label,
+            config.start_date,
+            config.end_date,
         )
 
         trading_days = trading_days_between(config.start_date, config.end_date)
 
         if len(trading_days) < 60:
-            raise ValueError(
-                f"Only {len(trading_days)} trading days in range — need ≥60."
-            )
+            raise ValueError(f"Only {len(trading_days)} trading days in range — need ≥60.")
 
         # Portfolio state
         current_positions: dict[str, int] = {t: 0 for t in self.strategy.universe}
@@ -175,7 +177,7 @@ class WalkForwardEngine:
         daily_returns: list[float] = []
         daily_nav: list[float] = []
         daily_states: list[DailyState] = []
-        last_rebalance: Optional[date] = None
+        last_rebalance: date | None = None
 
         for i, today in enumerate(trading_days):
             today_ts = pd.Timestamp(today, tz="UTC")
@@ -192,7 +194,9 @@ class WalkForwardEngine:
             prev_day = trading_days[i - 1] if i > 0 else today
             prev_prices = self._get_prices_on_date(prev_day) if i > 0 else prices
             daily_pnl_gbp = self._compute_daily_pnl(
-                current_positions, prices, prev_prices,
+                current_positions,
+                prices,
+                prev_prices,
                 config.usd_gbp_rate,
             )
             daily_return = daily_pnl_gbp / nav if nav > 0 else 0.0
@@ -200,7 +204,10 @@ class WalkForwardEngine:
 
             # ── Rebalance check ──────────────────────────────────────────────
             should_rebalance = self._should_rebalance(
-                today, last_rebalance, config.rebalance_every_n_days, i,
+                today,
+                last_rebalance,
+                config.rebalance_every_n_days,
+                i,
             )
 
             transaction_costs_gbp = 0.0
@@ -214,7 +221,7 @@ class WalkForwardEngine:
                 }
 
                 # ── Compute signals ──────────────────────────────────────────
-                as_of = datetime(today.year, today.month, today.day, 14, 0, tzinfo=timezone.utc)
+                as_of = datetime(today.year, today.month, today.day, 14, 0, tzinfo=UTC)
                 signal_result: SignalResult = self.strategy.run(data_to_date, as_of=as_of)
                 new_signals = signal_result.signals
 
@@ -253,20 +260,31 @@ class WalkForwardEngine:
             # ── Record daily state ───────────────────────────────────────────
             daily_returns.append(daily_return)
             daily_nav.append(nav)
-            daily_states.append(DailyState(
-                date=today,
-                positions=current_positions.copy(),
-                nav_gbp=nav,
-                daily_return=daily_return,
-                turnover=sum(abs(t) for t in (trades.values() if should_rebalance and signal_result.is_valid else {}.values())),
-                signals=new_signals,
-                transaction_costs_gbp=transaction_costs_gbp,
-            ))
+            daily_states.append(
+                DailyState(
+                    date=today,
+                    positions=current_positions.copy(),
+                    nav_gbp=nav,
+                    daily_return=daily_return,
+                    turnover=sum(
+                        abs(t)
+                        for t in (
+                            trades.values()
+                            if should_rebalance and signal_result.is_valid
+                            else {}.values()
+                        )
+                    ),
+                    signals=new_signals,
+                    transaction_costs_gbp=transaction_costs_gbp,
+                )
+            )
 
         # ── Build result ─────────────────────────────────────────────────────
-        idx = pd.DatetimeIndex([pd.Timestamp(d, tz="UTC") for d in trading_days[:len(daily_returns)]])
+        idx = pd.DatetimeIndex(
+            [pd.Timestamp(d, tz="UTC") for d in trading_days[: len(daily_returns)]]
+        )
         returns_series = pd.Series(daily_returns, index=idx, name="daily_return")
-        nav_series     = pd.Series(daily_nav,     index=idx, name="nav_gbp")
+        nav_series = pd.Series(daily_nav, index=idx, name="nav_gbp")
 
         result = BacktestResult(
             config=config,
@@ -291,16 +309,26 @@ class WalkForwardEngine:
         """
         sid = self.strategy.strategy_id
 
-        is_result = self.run(BacktestConfig(
-            strategy_id=sid, start_date=IS_START, end_date=IS_END,
-            period_label="IS", total_capital_gbp=capital_gbp,
-        ))
-        oos_result = self.run(BacktestConfig(
-            strategy_id=sid, start_date=OOS_START, end_date=OOS_END,
-            period_label="OOS", total_capital_gbp=capital_gbp,
-        ))
+        is_result = self.run(
+            BacktestConfig(
+                strategy_id=sid,
+                start_date=IS_START,
+                end_date=IS_END,
+                period_label="IS",
+                total_capital_gbp=capital_gbp,
+            )
+        )
+        oos_result = self.run(
+            BacktestConfig(
+                strategy_id=sid,
+                start_date=OOS_START,
+                end_date=OOS_END,
+                period_label="OOS",
+                total_capital_gbp=capital_gbp,
+            )
+        )
 
-        is_sharpe  = is_result.metrics.sharpe_ratio  if is_result.metrics  else 0.0
+        is_sharpe = is_result.metrics.sharpe_ratio if is_result.metrics else 0.0
         oos_sharpe = oos_result.metrics.sharpe_ratio if oos_result.metrics else 0.0
         wfer = compute_wfer(is_sharpe, oos_sharpe)
 
@@ -310,8 +338,11 @@ class WalkForwardEngine:
             "  OOS Sharpe: %.2f\n"
             "  WFER:       %.2f %s\n"
             "  Verdict:    %s",
-            sid, is_sharpe, oos_sharpe, wfer,
-            "(≥0.50 target)" ,
+            sid,
+            is_sharpe,
+            oos_sharpe,
+            wfer,
+            "(≥0.50 target)",
             "✅ PASS" if wfer >= 0.50 and oos_sharpe >= 0.30 else "❌ FAIL",
         )
 
@@ -344,6 +375,7 @@ class WalkForwardEngine:
         Positions are in lots (integer), price moves are per unit × lot_size.
         """
         from worfin.config.metals import get_metal
+
         pnl_usd = 0.0
         for ticker, lots in positions.items():
             if lots == 0:
@@ -413,6 +445,7 @@ class WalkForwardEngine:
         """Compute total transaction costs for a set of trades in GBP."""
         from worfin.backtest.costs import compute_trade_cost
         from worfin.config.metals import get_metal
+
         total_cost_usd = 0.0
         for ticker, lots_delta in trades.items():
             if lots_delta == 0 or ticker not in prices:
@@ -431,7 +464,7 @@ class WalkForwardEngine:
     def _should_rebalance(
         self,
         today: date,
-        last_rebalance: Optional[date],
+        last_rebalance: date | None,
         every_n_days: int,
         day_index: int,
     ) -> bool:

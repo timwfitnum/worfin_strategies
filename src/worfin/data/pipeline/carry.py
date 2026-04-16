@@ -14,15 +14,15 @@ Outputs feed into:
   clean_data.term_structure  — stored for audit and replay
   signals.computed_signals   — via strategy signal computation
 """
+
 from __future__ import annotations
 
 import logging
-from datetime import date, datetime, timezone
 
 import numpy as np
 import pandas as pd
 
-from worfin.config.calendar import get_lme_3m_dte, is_lme_trading_day
+from worfin.config.calendar import get_lme_3m_dte
 from worfin.config.metals import ALL_METALS, Exchange
 
 logger = logging.getLogger(__name__)
@@ -88,10 +88,10 @@ def compute_carry_series(
     carry_values = []
 
     for ts in cash_prices.index:
-        trade_date = ts.date() if hasattr(ts, 'date') else ts
+        trade_date = ts.date() if hasattr(ts, "date") else ts
 
         cash = cash_prices.loc[ts]
-        f3m  = f3m_prices.loc[ts]
+        f3m = f3m_prices.loc[ts]
 
         if pd.isna(cash) or pd.isna(f3m) or cash <= 0 or f3m <= 0:
             carry_values.append(np.nan)
@@ -144,7 +144,8 @@ def compute_all_carry(
             if nan_count > 0:
                 logger.warning(
                     "%s: %d NaN values in carry series (%.1f%% of %d observations).",
-                    ticker, nan_count,
+                    ticker,
+                    nan_count,
                     nan_count / len(results[ticker]) * 100,
                     len(results[ticker]),
                 )
@@ -180,7 +181,7 @@ def cross_sectional_carry_zscore(
         if std < 1e-10:
             return pd.Series(0.0, index=row.index)
         z = (row - valid.mean()) / std
-        return (z.clip(-clip, clip) / clip)
+        return z.clip(-clip, clip) / clip
 
     return df.apply(_zscore_row, axis=1)
 
@@ -197,13 +198,13 @@ def compute_carry_stats(carry_series: pd.Series) -> dict[str, float]:
         return {}
 
     return {
-        "mean":       float(clean.mean()),
-        "std":        float(clean.std()),
-        "pct_10":     float(clean.quantile(0.10)),
-        "pct_25":     float(clean.quantile(0.25)),
-        "pct_50":     float(clean.quantile(0.50)),
-        "pct_75":     float(clean.quantile(0.75)),
-        "pct_90":     float(clean.quantile(0.90)),
-        "pct_backwardation": float((clean > 0).mean()),   # fraction of days in backwardation
-        "sharpe_carry": float(clean.mean() / clean.std() * (252 ** 0.5)) if clean.std() > 0 else 0.0,
+        "mean": float(clean.mean()),
+        "std": float(clean.std()),
+        "pct_10": float(clean.quantile(0.10)),
+        "pct_25": float(clean.quantile(0.25)),
+        "pct_50": float(clean.quantile(0.50)),
+        "pct_75": float(clean.quantile(0.75)),
+        "pct_90": float(clean.quantile(0.90)),
+        "pct_backwardation": float((clean > 0).mean()),  # fraction of days in backwardation
+        "sharpe_carry": float(clean.mean() / clean.std() * (252**0.5)) if clean.std() > 0 else 0.0,
     }

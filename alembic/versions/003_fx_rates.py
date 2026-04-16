@@ -8,9 +8,11 @@ Schema supports multiple sources and currencies for future expansion.
 Revision ID: 003
 Revises: 002
 """
+
 from __future__ import annotations
 
 import sqlalchemy as sa
+
 from alembic import op
 
 revision = "003"
@@ -32,12 +34,16 @@ def upgrade() -> None:
         # Rate. DEXUSUK ≈ 1.27 → 1 GBP = 1.27 USD
         sa.Column("rate", sa.Numeric(14, 8), nullable=False),
         # Source attribution
-        sa.Column("source", sa.String(20), nullable=False),            # "FRED"|"manual"|...
-        sa.Column("source_series_id", sa.String(40), nullable=True),   # "DEXUSUK"
+        sa.Column("source", sa.String(20), nullable=False),  # "FRED"|"manual"|...
+        sa.Column("source_series_id", sa.String(40), nullable=True),  # "DEXUSUK"
         sa.Column("bar_size", sa.String(10), nullable=False, server_default="'daily'"),
         # When we fetched — for raw_data audit trail
-        sa.Column("fetched_at", sa.DateTime(timezone=True),
-                  server_default=sa.text("NOW()"), nullable=False),
+        sa.Column(
+            "fetched_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("NOW()"),
+            nullable=False,
+        ),
         schema="raw_data",
     )
     op.create_check_constraint(

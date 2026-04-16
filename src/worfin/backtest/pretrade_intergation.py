@@ -16,9 +16,9 @@ from __future__ import annotations
 
 import json
 import logging
+from collections.abc import Mapping
 from dataclasses import dataclass
-from datetime import datetime, timezone
-from typing import Mapping
+from datetime import UTC, datetime
 
 import numpy as np
 import pandas as pd
@@ -44,6 +44,7 @@ ADV_LOOKBACK_DAYS = 20
 # ─────────────────────────────────────────────────────────────────────────────
 # ADV COMPUTATION
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 def compute_trailing_adv(
     price_data: Mapping[str, pd.DataFrame],
@@ -117,12 +118,15 @@ def _typical_adv_fallback(ticker: str, reason: str) -> float:
         logger.warning(
             "%s: no volume data (%s) AND no typical_adv_lots on MetalSpec — "
             "liquidity check will SKIP. Add typical_adv_lots to metals.py.",
-            ticker, reason,
+            ticker,
+            reason,
         )
         return 0.0
     logger.debug(
         "%s: using typical_adv_lots=%.0f (reason: %s)",
-        ticker, fallback, reason,
+        ticker,
+        fallback,
+        reason,
     )
     return float(fallback)
 
@@ -130,6 +134,7 @@ def _typical_adv_fallback(ticker: str, reason: str) -> float:
 # ─────────────────────────────────────────────────────────────────────────────
 # PORTFOLIO STATE BUILDER
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 def build_portfolio_state(
     nav_gbp: float,
@@ -175,9 +180,11 @@ def build_portfolio_state(
 # CHECK RUNNER
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 @dataclass
 class TradeDecision:
     """Result of running pre-trade checks on a single proposed trade."""
+
     ticker: str
     strategy_id: str
     proposed_lots: int
@@ -189,8 +196,8 @@ class TradeDecision:
 
 def run_pretrade_checks(
     checker: PreTradeChecker,
-    proposed_deltas: Mapping[str, int],          # {ticker: lots_delta from current}
-    current_lots: Mapping[str, int],             # yesterday's lots per ticker
+    proposed_deltas: Mapping[str, int],  # {ticker: lots_delta from current}
+    current_lots: Mapping[str, int],  # yesterday's lots per ticker
     prices_usd: Mapping[str, float],
     signals: Mapping[str, float],
     signal_timestamp: datetime,
@@ -212,14 +219,16 @@ def run_pretrade_checks(
     for ticker, lots_delta in proposed_deltas.items():
         current = int(current_lots.get(ticker, 0))
         if lots_delta == 0:
-            decisions.append(TradeDecision(
-                ticker=ticker,
-                strategy_id=strategy_id,
-                proposed_lots=0,
-                approved=True,
-                pretrade_result=_empty_pass_result(ticker, strategy_id),
-                hold_lots=current,
-            ))
+            decisions.append(
+                TradeDecision(
+                    ticker=ticker,
+                    strategy_id=strategy_id,
+                    proposed_lots=0,
+                    approved=True,
+                    pretrade_result=_empty_pass_result(ticker, strategy_id),
+                    hold_lots=current,
+                )
+            )
             continue
         if ticker not in prices_usd:
             logger.warning("No price for %s at check time — skipping trade.", ticker)
@@ -237,7 +246,7 @@ def run_pretrade_checks(
             proposed_lots=lots_delta,
             proposed_notional_usd=proposed_notional_usd * (1 if lots_delta > 0 else -1),
             current_mid_price=price,
-            order_price=price,                  # backtest uses mark as fill price
+            order_price=price,  # backtest uses mark as fill price
             signal_timestamp=signal_timestamp,
             signal_direction=signal_direction,
             portfolio=portfolio,
@@ -245,14 +254,16 @@ def run_pretrade_checks(
         )
 
         approved = result.all_passed
-        decisions.append(TradeDecision(
-            ticker=ticker,
-            strategy_id=strategy_id,
-            proposed_lots=lots_delta,
-            approved=approved,
-            pretrade_result=result,
-            hold_lots=current,
-        ))
+        decisions.append(
+            TradeDecision(
+                ticker=ticker,
+                strategy_id=strategy_id,
+                proposed_lots=lots_delta,
+                approved=approved,
+                pretrade_result=result,
+                hold_lots=current,
+            )
+        )
 
     return decisions
 
@@ -264,7 +275,7 @@ def _empty_pass_result(ticker: str, strategy_id: str) -> PreTradeResult:
         strategy_id=strategy_id,
         proposed_lots=0,
         proposed_notional_usd=0.0,
-        timestamp=datetime.now(timezone.utc),
+        timestamp=datetime.now(UTC),
         checks=[],
     )
 
@@ -272,6 +283,7 @@ def _empty_pass_result(ticker: str, strategy_id: str) -> PreTradeResult:
 # ─────────────────────────────────────────────────────────────────────────────
 # REJECTION LOGGING
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 def log_rejections_to_audit(
     engine: Engine | None,
@@ -292,13 +304,14 @@ def log_rejections_to_audit(
 
     # Always log to logger first — audit-write failures must not mask rejections
     for d in rejected:
-        fails = ", ".join(
-            f"{c.check_name}={c.message}"
-            for c in d.pretrade_result.failed_checks
-        )
+        fails = ", ".join(f"{c.check_name}={c.message}" for c in d.pretrade_result.failed_checks)
         logger.warning(
             "BACKTEST REJECTION: %s %s %+d lots — %s (run=%s)",
-            d.strategy_id, d.ticker, d.proposed_lots, fails, backtest_run_id,
+            d.strategy_id,
+            d.ticker,
+            d.proposed_lots,
+            fails,
+            backtest_run_id,
         )
 
     if engine is None:
@@ -308,28 +321,37 @@ def log_rejections_to_audit(
         rows = []
         for d in rejected:
             for failed in d.pretrade_result.failed_checks:
-                rows.append({
-                    "breach_timestamp": as_of_ts,
-                    "breach_type": f"pretrade_{failed.check_name}",
-                    "action_taken": "trade_rejected_backtest",
-                    "threshold": float(failed.limit_value) if failed.limit_value is not None else None,
-                    "actual_value": float(failed.actual_value) if failed.actual_value is not None else None,
-                    "strategy_id": d.strategy_id,
-                    "ticker": d.ticker,
-                    "message": (
-                        f"Pre-trade check '{failed.check_name}' failed: {failed.message}. "
-                        f"Proposed {d.proposed_lots:+d} lots rejected."
-                    ),
-                    "source": "backtest",
-                    "backtest_run_id": backtest_run_id,
-                    "context_json": json.dumps({
-                        "proposed_lots": d.proposed_lots,
-                        "check_name": failed.check_name,
-                    }),
-                })
+                rows.append(
+                    {
+                        "breach_timestamp": as_of_ts,
+                        "breach_type": f"pretrade_{failed.check_name}",
+                        "action_taken": "trade_rejected_backtest",
+                        "threshold": (
+                            float(failed.limit_value) if failed.limit_value is not None else None
+                        ),
+                        "actual_value": (
+                            float(failed.actual_value) if failed.actual_value is not None else None
+                        ),
+                        "strategy_id": d.strategy_id,
+                        "ticker": d.ticker,
+                        "message": (
+                            f"Pre-trade check '{failed.check_name}' failed: {failed.message}. "
+                            f"Proposed {d.proposed_lots:+d} lots rejected."
+                        ),
+                        "source": "backtest",
+                        "backtest_run_id": backtest_run_id,
+                        "context_json": json.dumps(
+                            {
+                                "proposed_lots": d.proposed_lots,
+                                "check_name": failed.check_name,
+                            }
+                        ),
+                    }
+                )
         if not rows:
             return
-        stmt = text("""
+        stmt = text(
+            """
             INSERT INTO audit.risk_breaches
               (breach_timestamp, breach_type, action_taken, threshold, actual_value,
                strategy_id, ticker, message, source, backtest_run_id, context_json,
@@ -338,7 +360,8 @@ def log_rejections_to_audit(
               (:breach_timestamp, :breach_type, :action_taken, :threshold, :actual_value,
                :strategy_id, :ticker, :message, :source, :backtest_run_id, :context_json,
                NOW())
-        """)
+        """
+        )
         with engine.begin() as conn:
             conn.execute(stmt, rows)
     except Exception as exc:

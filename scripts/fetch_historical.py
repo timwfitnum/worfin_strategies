@@ -11,18 +11,19 @@ both front and second month contracts, and stores in raw_data schema.
 Duration: ~5–10 minutes on first run (API rate limiting).
 Subsequent incremental runs: ~30 seconds.
 """
+
 from __future__ import annotations
 
 import logging
 import sys
-from datetime import date, datetime, timezone
+from datetime import date
 from pathlib import Path
 
 # Add src to path so worfin package is importable
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 from worfin.config.settings import get_settings
-from worfin.data.ingestion.nasdaq_datalink import fetch_all_metals, fetch_for_backtest
+from worfin.data.ingestion.nasdaq_datalink import fetch_all_metals
 
 logging.basicConfig(
     level=logging.INFO,
@@ -36,10 +37,10 @@ logger = logging.getLogger("fetch_historical")
 # FIXED DATA SPLITS — DO NOT CHANGE AFTER FIRST RUN
 # Changing these after you've looked at any results contaminates the OOS split.
 # ─────────────────────────────────────────────────────────────────────────────
-IS_START    = date(2005, 1,  1)
-IS_END      = date(2017, 12, 31)
-OOS_START   = date(2018, 1,  1)
-OOS_END     = date(2022, 12, 31)
+IS_START = date(2005, 1, 1)
+IS_END = date(2017, 12, 31)
+OOS_START = date(2018, 1, 1)
+OOS_END = date(2022, 12, 31)
 HOLDOUT_START = date(2023, 1, 1)
 HOLDOUT_END = date.today()
 
@@ -78,8 +79,11 @@ def main() -> None:
             else:
                 logger.info(
                     "✅ %s %s — %d rows | %s → %s",
-                    ticker, contract_type, len(df),
-                    df.index.min().date(), df.index.max().date(),
+                    ticker,
+                    contract_type,
+                    len(df),
+                    df.index.min().date(),
+                    df.index.max().date(),
                 )
                 success_count += 1
 
@@ -104,9 +108,7 @@ def main() -> None:
     holdout_data = fetch_all_metals(start_date=HOLDOUT_START, end_date=HOLDOUT_END)
 
     holdout_rows = sum(
-        len(df) for contracts in holdout_data.values()
-        for df in contracts.values()
-        if not df.empty
+        len(df) for contracts in holdout_data.values() for df in contracts.values() if not df.empty
     )
     logger.info("Holdout fetch complete: %d total rows", holdout_rows)
     logger.info("\nNext step: run database setup then load data into PostgreSQL")

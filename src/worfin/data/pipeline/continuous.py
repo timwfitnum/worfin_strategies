@@ -41,7 +41,7 @@ from __future__ import annotations
 import logging
 import uuid
 from dataclasses import dataclass, field
-from datetime import date, datetime, timezone
+from datetime import UTC, date, datetime
 from decimal import Decimal
 from typing import Literal
 
@@ -60,13 +60,13 @@ logger = logging.getLogger(__name__)
 # Data-detection threshold: a day is treated as a roll candidate if the
 # front-month log return exceeds this magnitude AND the new front price
 # is close to yesterday's second-month price.
-ROLL_DETECTION_JUMP_THRESHOLD = 0.015   # 1.5% single-day move flags candidate
+ROLL_DETECTION_JUMP_THRESHOLD = 0.015  # 1.5% single-day move flags candidate
 ROLL_DETECTION_MATCH_TOLERANCE = 0.005  # _1[D] must be within 0.5% of _2[D-1]
 
 # COMEX roll-ahead-of-FND per metal (business days before first notice day)
 COMEX_ROLL_DAYS_BEFORE_FND: dict[str, int] = {
-    "GC": 8,   # Gold — standard 5–10 BD roll, we pick 8 (Execution Playbook)
-    "SI": 8,   # Silver — same as gold
+    "GC": 8,  # Gold — standard 5–10 BD roll, we pick 8 (Execution Playbook)
+    "SI": 8,  # Silver — same as gold
     "PL": 12,  # Platinum — thin back months, roll earlier (7–15 BD)
     "PA": 13,  # Palladium — least liquid, roll earliest (10–15 BD)
 }
@@ -78,9 +78,11 @@ RollMethod = Literal["back_adjusted", "ratio_adjusted"]
 # RESULT TYPES
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 @dataclass
 class RollEvent:
     """A single roll event with full audit detail."""
+
     roll_timestamp: datetime
     ticker: str
     exchange: str
@@ -96,10 +98,11 @@ class RollEvent:
 @dataclass
 class ContinuousSeriesResult:
     """Output of continuous-series construction."""
+
     ticker: str
     method: str
-    adjusted_series: pd.Series                 # main output — use for signals
-    unadjusted_front: pd.Series                # raw front series (for reference/S6)
+    adjusted_series: pd.Series  # main output — use for signals
+    unadjusted_front: pd.Series  # raw front series (for reference/S6)
     roll_events: list[RollEvent] = field(default_factory=list)
     series_id: str = field(default_factory=lambda: str(uuid.uuid4()))
 
@@ -117,6 +120,7 @@ class ContinuousSeriesResult:
 # ─────────────────────────────────────────────────────────────────────────────
 # ROLL DETECTION
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 def detect_lme_rolls(front: pd.Series, second: pd.Series) -> list[pd.Timestamp]:
     """
@@ -198,9 +202,9 @@ def detect_comex_rolls(
     threshold = ROLL_DETECTION_JUMP_THRESHOLD * 0.7
     jumps = log_ret.abs() > threshold
     logger.info(
-        "%s: no FND dates supplied — using data-driven fallback "
-        "(detected %d candidate rolls)",
-        ticker, int(jumps.sum()),
+        "%s: no FND dates supplied — using data-driven fallback " "(detected %d candidate rolls)",
+        ticker,
+        int(jumps.sum()),
     )
     return list(jumps[jumps].index)
 
@@ -208,6 +212,7 @@ def detect_comex_rolls(
 # ─────────────────────────────────────────────────────────────────────────────
 # CORE ADJUSTMENT
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 def _back_adjust(
     front: pd.Series,
@@ -296,7 +301,9 @@ def _ratio_adjust(
         if old_price <= 0 or new_price <= 0:
             logger.warning(
                 "Cannot ratio-adjust at %s: non-positive prices (old=%s, new=%s)",
-                roll_ts, old_price, new_price,
+                roll_ts,
+                old_price,
+                new_price,
             )
             continue
 
@@ -312,6 +319,7 @@ def _ratio_adjust(
 # ─────────────────────────────────────────────────────────────────────────────
 # PUBLIC ENTRY POINT
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 def build_continuous_series(
     ticker: str,
@@ -364,8 +372,9 @@ def build_continuous_series(
             rolls = detect_comex_rolls(front, ticker, fnd_dates=fnd_dates)
             detection_method = "calendar" if fnd_dates else "data"
         else:
-            logger.warning("%s: unknown exchange %s — using LME detection as fallback",
-                           ticker, exchange)
+            logger.warning(
+                "%s: unknown exchange %s — using LME detection as fallback", ticker, exchange
+            )
             rolls = detect_lme_rolls(front, second)
             detection_method = "data"
 
@@ -384,25 +393,29 @@ def build_continuous_series(
         gap_pct = gap / old_price if old_price != 0 else 0.0
         py_ts = roll_ts.to_pydatetime()
         if py_ts.tzinfo is None:
-            py_ts = py_ts.replace(tzinfo=timezone.utc)
-        roll_events.append(RollEvent(
-            roll_timestamp=py_ts,
-            ticker=ticker,
-            exchange=exchange,
-            old_front_price=old_price,
-            new_front_price=new_price,
-            gap_absolute=gap,
-            gap_pct=gap_pct,
-            roll_method=method,
-            detection_method=detection_method,
-        ))
+            py_ts = py_ts.replace(tzinfo=UTC)
+        roll_events.append(
+            RollEvent(
+                roll_timestamp=py_ts,
+                ticker=ticker,
+                exchange=exchange,
+                old_front_price=old_price,
+                new_front_price=new_price,
+                gap_absolute=gap,
+                gap_pct=gap_pct,
+                roll_method=method,
+                detection_method=detection_method,
+            )
+        )
 
     logger.info(
         "%s: built %s series %s → %s (%d rolls, %s detection)",
-        ticker, method,
+        ticker,
+        method,
         front.index.min().date() if len(front) else "?",
         front.index.max().date() if len(front) else "?",
-        len(roll_events), detection_method,
+        len(roll_events),
+        detection_method,
     )
 
     # Persist to audit.roll_log if engine provided
@@ -428,6 +441,7 @@ def build_continuous_series(
 # ─────────────────────────────────────────────────────────────────────────────
 # AUDIT PERSISTENCE
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 def _persist_roll_events(
     engine: Engine,
@@ -463,7 +477,8 @@ def _persist_roll_events(
             }
             for e in events
         ]
-        stmt = text("""
+        stmt = text(
+            """
             INSERT INTO audit.roll_log
               (roll_timestamp, ticker, exchange, from_contract, to_contract,
                old_front_price_usd, new_front_price_usd, gap_absolute, gap_pct,
@@ -476,10 +491,10 @@ def _persist_roll_events(
                :roll_method, :theoretical_fair_spread, :roll_cost_vs_fair_bps,
                :days_before_fnd, :environment, :backtest_run_id, :series_id,
                :detection_method)
-        """)
+        """
+        )
         with engine.begin() as conn:
             conn.execute(stmt, rows)
-        logger.info("Persisted %d roll events to audit.roll_log (series %s)",
-                    len(rows), series_id)
+        logger.info("Persisted %d roll events to audit.roll_log (series %s)", len(rows), series_id)
     except Exception as exc:
         logger.error("Failed to persist roll events to audit.roll_log: %s", exc)

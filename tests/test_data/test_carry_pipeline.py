@@ -1,10 +1,15 @@
 """tests/test_data/test_carry_pipeline.py"""
+
 from __future__ import annotations
+
 import numpy as np
 import pandas as pd
 import pytest
+
 from worfin.data.pipeline.carry import (
-    compute_carry, compute_carry_series, cross_sectional_carry_zscore,
+    compute_carry,
+    compute_carry_series,
+    cross_sectional_carry_zscore,
 )
 
 
@@ -33,7 +38,7 @@ class TestComputeCarry:
         # At 91 days, carry should be approx 4× the 91-day rate
         carry_91 = compute_carry(9100.0, 9000.0, dte=91)
         # Approximate: (100/9100) * (365/91) ≈ 0.044
-        assert abs(carry_91 - (100/9100) * (365/91)) < 0.001
+        assert abs(carry_91 - (100 / 9100) * (365 / 91)) < 0.001
 
 
 class TestCarrySeries:

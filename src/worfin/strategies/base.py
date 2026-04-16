@@ -12,13 +12,13 @@ INTRADAY-READY DESIGN DECISIONS (implemented now, used later):
 Adding a new intraday strategy later = new StrategyConfig instance + new subclass.
 No changes to base class, execution engine, or scheduler required.
 """
+
 from __future__ import annotations
 
 import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from datetime import datetime, timezone, timedelta
-from typing import Optional
+from datetime import UTC, datetime, timedelta
 
 import pandas as pd
 
@@ -30,32 +30,35 @@ logger = logging.getLogger(__name__)
 # Used in StrategyConfig and scheduler routing — never hardcode elsewhere
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 class Frequency:
     """Strategy execution frequencies. Add new ones here as needed."""
-    DAILY    = "daily"     # Current: all six strategies
-    SWING    = "swing"     # Future: multi-day mean reversion
+
+    DAILY = "daily"  # Current: all six strategies
+    SWING = "swing"  # Future: multi-day mean reversion
     INTRADAY = "intraday"  # Future: sub-daily signals
-    HOURLY   = "hourly"    # Future: hourly bars
-    MINUTE_5 = "5min"      # Future: 5-minute bars
+    HOURLY = "hourly"  # Future: hourly bars
+    MINUTE_5 = "5min"  # Future: 5-minute bars
 
 
 class BarSize:
     """Data granularity consumed by the strategy."""
-    DAILY    = "daily"
-    HOURLY   = "1hour"
-    MIN_15   = "15min"
-    MIN_5    = "5min"
-    MIN_1    = "1min"
-    TICK     = "tick"
+
+    DAILY = "daily"
+    HOURLY = "1hour"
+    MIN_15 = "15min"
+    MIN_5 = "5min"
+    MIN_1 = "1min"
+    TICK = "tick"
 
 
 # Signal validity windows per frequency
 # How long a signal remains valid before it must be recomputed
 SIGNAL_VALIDITY: dict[str, timedelta] = {
-    Frequency.DAILY:    timedelta(hours=24),
-    Frequency.SWING:    timedelta(hours=8),
+    Frequency.DAILY: timedelta(hours=24),
+    Frequency.SWING: timedelta(hours=8),
     Frequency.INTRADAY: timedelta(hours=1),
-    Frequency.HOURLY:   timedelta(hours=1),
+    Frequency.HOURLY: timedelta(hours=1),
     Frequency.MINUTE_5: timedelta(minutes=5),
 }
 
@@ -74,15 +77,16 @@ class StrategyConfig:
     Adding an intraday strategy = new StrategyConfig with frequency="intraday".
     No other code changes required.
     """
-    strategy_id: str                # e.g. "S4"
-    name: str                       # e.g. "Basis-Momentum"
-    universe: list[str]             # Metal tickers in scope
-    frequency: str                  # Frequency.DAILY | SWING | INTRADAY | HOURLY
-    bar_size: str                   # BarSize.DAILY | HOURLY | MIN_5 etc.
-    rebalance_freq: str             # "weekly", "biweekly", "monthly", "continuous"
-    target_vol: float               # Annualised vol target (e.g. 0.11)
-    max_drawdown_budget: float      # Max drawdown before suspension
-    min_history_bars: int           # Minimum bars needed (not days — bar-agnostic)
+
+    strategy_id: str  # e.g. "S4"
+    name: str  # e.g. "Basis-Momentum"
+    universe: list[str]  # Metal tickers in scope
+    frequency: str  # Frequency.DAILY | SWING | INTRADAY | HOURLY
+    bar_size: str  # BarSize.DAILY | HOURLY | MIN_5 etc.
+    rebalance_freq: str  # "weekly", "biweekly", "monthly", "continuous"
+    target_vol: float  # Annualised vol target (e.g. 0.11)
+    max_drawdown_budget: float  # Max drawdown before suspension
+    min_history_bars: int  # Minimum bars needed (not days — bar-agnostic)
     parameters: dict = field(default_factory=dict)
 
     @property
@@ -105,12 +109,13 @@ class SignalResult:
     identically for daily signals valid for 24 hours and 5-min signals
     valid for 5 minutes.
     """
-    computed_at: datetime           # UTC timestamp when signal was computed
-    valid_from: datetime            # Signal becomes actionable from this time
-    valid_until: datetime           # Signal expires at this time — do not execute after
+
+    computed_at: datetime  # UTC timestamp when signal was computed
+    valid_from: datetime  # Signal becomes actionable from this time
+    valid_until: datetime  # Signal expires at this time — do not execute after
     strategy_id: str
-    bar_size: str                   # Which granularity produced this signal
-    signals: dict[str, float]       # {ticker: signal in [-1, +1]}
+    bar_size: str  # Which granularity produced this signal
+    signals: dict[str, float]  # {ticker: signal in [-1, +1]}
     signal_metadata: dict[str, dict]
     is_valid: bool
     invalid_tickers: list[str]
@@ -126,7 +131,7 @@ class SignalResult:
     @property
     def is_expired(self) -> bool:
         """True if this signal is past its valid_until timestamp."""
-        return datetime.now(timezone.utc) > self.valid_until
+        return datetime.now(UTC) > self.valid_until
 
     @property
     def is_actionable(self) -> bool:
@@ -198,15 +203,16 @@ class BaseStrategy(ABC):
     def run(
         self,
         data: dict[str, pd.DataFrame],
-        as_of: Optional[datetime] = None,
+        as_of: datetime | None = None,
     ) -> SignalResult:
         """
         Main entry point — validates inputs then computes signals.
         Never call compute_signals() directly.
         """
         import time
+
         if as_of is None:
-            as_of = datetime.now(timezone.utc)
+            as_of = datetime.now(UTC)
 
         start = time.monotonic()
 
@@ -220,19 +226,25 @@ class BaseStrategy(ABC):
         if valid_count < 4:
             self.logger.error(
                 "%s: Only %d valid tickers on %s — need ≥4 for cross-sectional ranking.",
-                self.strategy_id, valid_count, as_of,
+                self.strategy_id,
+                valid_count,
+                as_of,
             )
             return self._flat_result(as_of, is_valid=False)
 
         if invalid_tickers:
-            self.logger.warning("%s: Excluding %s due to data issues.", self.strategy_id, invalid_tickers)
+            self.logger.warning(
+                "%s: Excluding %s due to data issues.", self.strategy_id, invalid_tickers
+            )
 
         try:
             result = self.compute_signals(data, as_of)
             elapsed_ms = (time.monotonic() - start) * 1000
             self.logger.info(
                 "%s signals computed in %.1fms | %s | valid tickers: %d/%d",
-                self.strategy_id, elapsed_ms, as_of.strftime("%Y-%m-%d %H:%M UTC"),
+                self.strategy_id,
+                elapsed_ms,
+                as_of.strftime("%Y-%m-%d %H:%M UTC"),
                 len([v for v in result.signals.values() if v != 0]),
                 len(self.universe),
             )
@@ -273,7 +285,10 @@ class BaseStrategy(ABC):
                 insufficient.append(ticker)
                 self.logger.warning(
                     "%s: %s has %d bars, needs %d.",
-                    self.strategy_id, ticker, available, self.config.min_history_bars,
+                    self.strategy_id,
+                    ticker,
+                    available,
+                    self.config.min_history_bars,
                 )
         return insufficient
 

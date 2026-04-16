@@ -30,21 +30,30 @@ from __future__ import annotations
 import argparse
 import socket
 import sys
+from collections.abc import Callable
 from dataclasses import dataclass, field
-from datetime import date, datetime, timezone
-from typing import Callable
+from datetime import UTC, datetime
 
 # ─────────────────────────────────────────────────────────────────────────────
 # REQUIRED ENV VARS
 # ─────────────────────────────────────────────────────────────────────────────
 
 REQUIRED_ENV_VARS = [
-    "DB_HOST", "DB_PORT", "DB_NAME", "DB_USER", "DB_PASSWORD",
+    "DB_HOST",
+    "DB_PORT",
+    "DB_NAME",
+    "DB_USER",
+    "DB_PASSWORD",
     "NASDAQ_DATA_LINK_API_KEY",
     "FRED_API_KEY",
-    "TELEGRAM_BOT_TOKEN", "TELEGRAM_CHAT_ID",
-    "IBKR_HOST", "IBKR_PORT_LIVE", "IBKR_PORT_PAPER", "IBKR_CLIENT_ID",
-    "ENVIRONMENT", "LOG_LEVEL",
+    "TELEGRAM_BOT_TOKEN",
+    "TELEGRAM_CHAT_ID",
+    "IBKR_HOST",
+    "IBKR_PORT_LIVE",
+    "IBKR_PORT_PAPER",
+    "IBKR_CLIENT_ID",
+    "ENVIRONMENT",
+    "LOG_LEVEL",
 ]
 
 EXPECTED_SCHEMAS = ["raw_data", "clean_data", "signals", "positions", "orders", "audit"]
@@ -57,11 +66,12 @@ NTP_DRIFT_FAILURE_SECONDS = 30.0
 # RESULT TYPES
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 @dataclass
 class CheckResult:
     name: str
     passed: bool
-    is_warning: bool = False      # True = don't fail overall run
+    is_warning: bool = False  # True = don't fail overall run
     detail: str = ""
 
 
@@ -84,7 +94,7 @@ class ValidationReport:
         lines = []
         lines.append("=" * 78)
         lines.append("WorFIn Environment Validation")
-        lines.append(f"Run at: {datetime.now(timezone.utc).isoformat()}")
+        lines.append(f"Run at: {datetime.now(UTC).isoformat()}")
         lines.append("=" * 78)
         for r in self.results:
             if r.passed:
@@ -107,8 +117,10 @@ class ValidationReport:
 # INDIVIDUAL CHECKS
 # ─────────────────────────────────────────────────────────────────────────────
 
+
 def check_env_vars() -> CheckResult:
     import os
+
     missing = [v for v in REQUIRED_ENV_VARS if not os.environ.get(v)]
     if missing:
         return CheckResult(
@@ -126,15 +138,18 @@ def check_env_vars() -> CheckResult:
 def check_database() -> CheckResult:
     try:
         from sqlalchemy import create_engine, text
+
         from worfin.config.settings import get_settings
+
         settings = get_settings()
         engine = create_engine(settings.database_url, pool_pre_ping=True)
         with engine.connect() as conn:
             version = conn.execute(text("SELECT version()")).scalar()
             schemas = {
-                r[0] for r in conn.execute(text(
-                    "SELECT schema_name FROM information_schema.schemata"
-                )).all()
+                r[0]
+                for r in conn.execute(
+                    text("SELECT schema_name FROM information_schema.schemata")
+                ).all()
             }
         missing_schemas = [s for s in EXPECTED_SCHEMAS if s not in schemas]
         if missing_schemas:
@@ -142,7 +157,7 @@ def check_database() -> CheckResult:
                 "PostgreSQL",
                 passed=False,
                 detail=f"connected, but missing schemas: {missing_schemas}. "
-                       f"Run 'alembic upgrade head'",
+                f"Run 'alembic upgrade head'",
             )
         # Truncate version string for display
         v = version.split(",")[0] if version else "unknown"
@@ -152,18 +167,20 @@ def check_database() -> CheckResult:
             detail=f"{v}, all schemas present",
         )
     except Exception as exc:
-        return CheckResult("PostgreSQL", passed=False,
-                           detail=f"connection failed: {exc}")
+        return CheckResult("PostgreSQL", passed=False, detail=f"connection failed: {exc}")
 
 
 def check_nasdaq_data_link() -> CheckResult:
     try:
         import nasdaqdatalink
+
         from worfin.config.settings import get_settings
+
         settings = get_settings()
         if not settings.nasdaq_data_link_api_key:
-            return CheckResult("Nasdaq Data Link", passed=False,
-                               detail="NASDAQ_DATA_LINK_API_KEY not set")
+            return CheckResult(
+                "Nasdaq Data Link", passed=False, detail="NASDAQ_DATA_LINK_API_KEY not set"
+            )
         nasdaqdatalink.ApiConfig.api_key = settings.nasdaq_data_link_api_key
         # Tiny request: just a few rows of a well-known series
         df = nasdaqdatalink.get(
@@ -172,46 +189,49 @@ def check_nasdaq_data_link() -> CheckResult:
             returns="pandas",
         )
         if df is None or df.empty:
-            return CheckResult("Nasdaq Data Link", passed=False,
-                               detail="request returned no data")
-        return CheckResult("Nasdaq Data Link", passed=True,
-                           detail=f"API key valid ({len(df)} rows fetched)")
+            return CheckResult("Nasdaq Data Link", passed=False, detail="request returned no data")
+        return CheckResult(
+            "Nasdaq Data Link", passed=True, detail=f"API key valid ({len(df)} rows fetched)"
+        )
     except Exception as exc:
-        return CheckResult("Nasdaq Data Link", passed=False,
-                           detail=f"request failed: {exc}")
+        return CheckResult("Nasdaq Data Link", passed=False, detail=f"request failed: {exc}")
 
 
 def check_fred() -> CheckResult:
     try:
         from fredapi import Fred
+
         from worfin.config.settings import get_settings
+
         settings = get_settings()
         if not settings.fred_api_key:
-            return CheckResult("FRED", passed=False,
-                               detail="FRED_API_KEY not set")
+            return CheckResult("FRED", passed=False, detail="FRED_API_KEY not set")
         fred = Fred(api_key=settings.fred_api_key)
         # Tiny request — one week of DEXUSUK
         series = fred.get_series("DEXUSUK", limit=5)
         if series is None or len(series) == 0:
-            return CheckResult("FRED", passed=False,
-                               detail="DEXUSUK returned no data")
+            return CheckResult("FRED", passed=False, detail="DEXUSUK returned no data")
         latest_rate = series.dropna().iloc[-1]
-        return CheckResult("FRED", passed=True,
-                           detail=f"API key valid (latest DEXUSUK={latest_rate:.4f})")
+        return CheckResult(
+            "FRED", passed=True, detail=f"API key valid (latest DEXUSUK={latest_rate:.4f})"
+        )
     except Exception as exc:
-        return CheckResult("FRED", passed=False,
-                           detail=f"request failed: {exc}")
+        return CheckResult("FRED", passed=False, detail=f"request failed: {exc}")
 
 
 def check_telegram(send_test_message: bool = False) -> CheckResult:
     try:
         import asyncio
+
         import telegram
+
         from worfin.config.settings import get_settings
+
         settings = get_settings()
         if not settings.telegram_bot_token or not settings.telegram_chat_id:
-            return CheckResult("Telegram", passed=False,
-                               detail="TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID not set")
+            return CheckResult(
+                "Telegram", passed=False, detail="TELEGRAM_BOT_TOKEN or TELEGRAM_CHAT_ID not set"
+            )
 
         async def _validate() -> str:
             bot = telegram.Bot(token=settings.telegram_bot_token)
@@ -222,7 +242,7 @@ def check_telegram(send_test_message: bool = False) -> CheckResult:
                     chat_id=settings.telegram_chat_id,
                     text=(
                         f"🟢 WorFIn validate_env test — "
-                        f"{datetime.now(timezone.utc).isoformat()}"
+                        f"{datetime.now(UTC).isoformat()}"
                     ),
                 )
                 detail = f"bot @{me.username} authenticated; test message sent"
@@ -231,8 +251,7 @@ def check_telegram(send_test_message: bool = False) -> CheckResult:
         detail = asyncio.run(_validate())
         return CheckResult("Telegram", passed=True, detail=detail)
     except Exception as exc:
-        return CheckResult("Telegram", passed=False,
-                           detail=f"auth failed: {exc}")
+        return CheckResult("Telegram", passed=False, detail=f"auth failed: {exc}")
 
 
 def check_system_clock() -> CheckResult:
@@ -269,7 +288,7 @@ def check_system_clock() -> CheckResult:
             passed=True,
             detail=f"drift {drift:+.3f}s (OK)",
         )
-    except (socket.gaierror, socket.timeout, Exception) as exc:
+    except (TimeoutError, socket.gaierror, Exception) as exc:
         return CheckResult(
             "System clock (NTP)",
             passed=False,
@@ -281,6 +300,7 @@ def check_system_clock() -> CheckResult:
 # ─────────────────────────────────────────────────────────────────────────────
 # MAIN
 # ─────────────────────────────────────────────────────────────────────────────
+
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Validate WorFIn runtime environment.")

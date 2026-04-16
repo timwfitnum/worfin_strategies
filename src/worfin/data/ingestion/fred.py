@@ -10,7 +10,7 @@ Writes to raw_data.fx_rates (append-only; never modifies historical rows).
 from __future__ import annotations
 
 import logging
-from datetime import date, datetime, timezone
+from datetime import date
 from decimal import Decimal
 
 import pandas as pd
@@ -23,7 +23,7 @@ from worfin.config.settings import get_settings
 logger = logging.getLogger(__name__)
 
 # FRED series IDs
-DEXUSUK = "DEXUSUK"   # USD per GBP — daily fixing, noon NY time
+DEXUSUK = "DEXUSUK"  # USD per GBP — daily fixing, noon NY time
 
 
 def _get_fred_client() -> Fred:
@@ -68,20 +68,26 @@ def fetch_usd_gbp(
         )
         series = series.dropna()
         if series.empty:
-            logger.warning("FRED returned empty series for DEXUSUK %s → %s",
-                           start_date, end_date)
+            logger.warning("FRED returned empty series for DEXUSUK %s → %s", start_date, end_date)
             return pd.DataFrame()
 
-        df = pd.DataFrame({
-            "as_of_date": [d.date() if isinstance(d, pd.Timestamp) else d
-                           for d in series.index],
-            "pair": "USDGBP",
-            "rate": series.values.astype(float),
-            "source": "FRED",
-            "source_series_id": DEXUSUK,
-        })
-        logger.info("Fetched %d FX observations (%s → %s)",
-                    len(df), df["as_of_date"].min(), df["as_of_date"].max())
+        df = pd.DataFrame(
+            {
+                "as_of_date": [
+                    d.date() if isinstance(d, pd.Timestamp) else d for d in series.index
+                ],
+                "pair": "USDGBP",
+                "rate": series.values.astype(float),
+                "source": "FRED",
+                "source_series_id": DEXUSUK,
+            }
+        )
+        logger.info(
+            "Fetched %d FX observations (%s → %s)",
+            len(df),
+            df["as_of_date"].min(),
+            df["as_of_date"].max(),
+        )
         return df
     except Exception as exc:
         logger.error("FRED fetch failed for DEXUSUK: %s", exc)
@@ -112,13 +118,15 @@ def store_fx_rates(engine: Engine, df: pd.DataFrame) -> int:
         }
         for _, r in df.iterrows()
     ]
-    stmt = text("""
+    stmt = text(
+        """
         INSERT INTO raw_data.fx_rates
           (as_of_date, pair, rate, source, source_series_id, bar_size)
         VALUES
           (:as_of_date, :pair, :rate, :source, :source_series_id, :bar_size)
         ON CONFLICT (pair, as_of_date, source) DO NOTHING
-    """)
+    """
+    )
     with engine.begin() as conn:
         result = conn.execute(stmt, rows)
     inserted = result.rowcount if result.rowcount is not None else len(rows)

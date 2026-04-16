@@ -7,6 +7,7 @@ every position size in the system. Accuracy is critical.
 
 Convention: always annualised (× √252), always log-returns.
 """
+
 from __future__ import annotations
 
 import logging
@@ -159,9 +160,9 @@ def detect_vol_regime(
     if ratio < 1.5:
         return "normal"
     elif ratio < 2.0:
-        return "elevated"   # Alert — approaching allocation reduction
+        return "elevated"  # Alert — approaching allocation reduction
     else:
-        return "extreme"    # Halve allocation immediately
+        return "extreme"  # Halve allocation immediately
 
 
 def flag_vol_spikes(

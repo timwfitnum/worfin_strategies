@@ -26,10 +26,11 @@ ECONOMIC RATIONALE (Gorton & Rouwenhorst, 2006):
   earn this risk premium by providing hedging capacity to producers.
   The signal is most reliable when combined with a momentum filter (see S4).
 """
+
 from __future__ import annotations
 
 import logging
-from datetime import datetime, timezone
+from datetime import datetime
 
 import pandas as pd
 
@@ -57,8 +58,8 @@ S1_CONFIG = StrategyConfig(
     max_drawdown_budget=0.12,
     min_history_bars=30,
     parameters={
-        "zscore_clip":  2.0,
-        "min_valid_tickers": 6,   # Need at least 6 for meaningful cross-sectional ranking
+        "zscore_clip": 2.0,
+        "min_valid_tickers": 6,  # Need at least 6 for meaningful cross-sectional ranking
     },
 )
 
@@ -131,12 +132,14 @@ class CarryStrategy(BaseStrategy):
         if len(valid_tickers) < min_valid:
             logger.error(
                 "S1: Only %d valid tickers on %s — need ≥%d.",
-                len(valid_tickers), as_of.date(), min_valid,
+                len(valid_tickers),
+                as_of.date(),
+                min_valid,
             )
             return self._flat_result(as_of, is_valid=False)
 
         raw_carry: dict[str, float] = {}
-        metadata:  dict[str, dict]  = {}
+        metadata: dict[str, dict] = {}
 
         for ticker in valid_tickers:
             df = data[ticker]
@@ -144,7 +147,7 @@ class CarryStrategy(BaseStrategy):
             row = df_to_date.iloc[-1]
 
             cash_price = float(row["cash_price"])
-            f3m_price  = float(row["f3m_price"])
+            f3m_price = float(row["f3m_price"])
             metal = get_metal(ticker)
 
             # CRITICAL: use actual DTE, not fixed 91 days
@@ -161,10 +164,10 @@ class CarryStrategy(BaseStrategy):
 
             raw_carry[ticker] = carry_value
             metadata[ticker] = {
-                "cash_price":  cash_price,
-                "f3m_price":   f3m_price,
-                "dte":         dte,
-                "raw_carry":   carry_value,
+                "cash_price": cash_price,
+                "f3m_price": f3m_price,
+                "dte": dte,
+                "raw_carry": carry_value,
                 "in_backwardation": carry_value > 0,
             }
 

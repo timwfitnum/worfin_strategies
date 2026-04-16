@@ -21,11 +21,13 @@ DESIGN:
 Revision ID: 002
 Revises: 001
 """
+
 from __future__ import annotations
 
 import sqlalchemy as sa
-from alembic import op
 from sqlalchemy.dialects import postgresql
+
+from alembic import op
 
 revision = "002"
 down_revision = "001"
@@ -76,8 +78,12 @@ def upgrade() -> None:
         sa.Column("broker_trade_id", sa.String(50), nullable=True),
         # Free-form
         sa.Column("notes", sa.Text, nullable=True),
-        sa.Column("created_at", sa.DateTime(timezone=True),
-                  server_default=sa.text("NOW()"), nullable=False),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("NOW()"),
+            nullable=False,
+        ),
         schema="positions",
     )
     op.create_check_constraint(
@@ -98,15 +104,22 @@ def upgrade() -> None:
         "lots <> 0",
         schema="positions",
     )
-    op.create_index("ix_trades_env_ts", "trades",
-                    ["environment", "trade_timestamp"], schema="positions")
-    op.create_index("ix_trades_strategy_ts", "trades",
-                    ["strategy_id", "trade_timestamp"], schema="positions")
-    op.create_index("ix_trades_ticker_ts", "trades",
-                    ["ticker", "trade_timestamp"], schema="positions")
-    op.create_index("ix_trades_run", "trades",
-                    ["backtest_run_id"], schema="positions",
-                    postgresql_where=sa.text("backtest_run_id IS NOT NULL"))
+    op.create_index(
+        "ix_trades_env_ts", "trades", ["environment", "trade_timestamp"], schema="positions"
+    )
+    op.create_index(
+        "ix_trades_strategy_ts", "trades", ["strategy_id", "trade_timestamp"], schema="positions"
+    )
+    op.create_index(
+        "ix_trades_ticker_ts", "trades", ["ticker", "trade_timestamp"], schema="positions"
+    )
+    op.create_index(
+        "ix_trades_run",
+        "trades",
+        ["backtest_run_id"],
+        schema="positions",
+        postgresql_where=sa.text("backtest_run_id IS NOT NULL"),
+    )
 
     # ─────────────────────────────────────────────────────────────────────────
     # positions.daily_pnl
@@ -144,8 +157,12 @@ def upgrade() -> None:
         sa.Column("total_cost_gbp", sa.Numeric(18, 2), nullable=True),
         # FX snapshot
         sa.Column("fx_rate_usd_gbp", sa.Numeric(12, 6), nullable=True),
-        sa.Column("created_at", sa.DateTime(timezone=True),
-                  server_default=sa.text("NOW()"), nullable=False),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("NOW()"),
+            nullable=False,
+        ),
         schema="positions",
     )
     op.create_check_constraint(
@@ -189,11 +206,16 @@ def upgrade() -> None:
         unique=True,
         schema="positions",
     )
-    op.create_index("ix_daily_pnl_ts_scope", "daily_pnl",
-                    ["as_of_timestamp", "scope"], schema="positions")
-    op.create_index("ix_daily_pnl_run", "daily_pnl",
-                    ["backtest_run_id"], schema="positions",
-                    postgresql_where=sa.text("backtest_run_id IS NOT NULL"))
+    op.create_index(
+        "ix_daily_pnl_ts_scope", "daily_pnl", ["as_of_timestamp", "scope"], schema="positions"
+    )
+    op.create_index(
+        "ix_daily_pnl_run",
+        "daily_pnl",
+        ["backtest_run_id"],
+        schema="positions",
+        postgresql_where=sa.text("backtest_run_id IS NOT NULL"),
+    )
 
     # ─────────────────────────────────────────────────────────────────────────
     # positions.account_summary
@@ -219,8 +241,8 @@ def upgrade() -> None:
         # Exposure & leverage
         sa.Column("gross_exposure_gbp", sa.Numeric(18, 2), nullable=False),
         sa.Column("net_exposure_gbp", sa.Numeric(18, 2), nullable=False),
-        sa.Column("gross_leverage", sa.Numeric(10, 4), nullable=False),   # gross / nav
-        sa.Column("net_leverage", sa.Numeric(10, 4), nullable=False),     # |net| / nav
+        sa.Column("gross_leverage", sa.Numeric(10, 4), nullable=False),  # gross / nav
+        sa.Column("net_leverage", sa.Numeric(10, 4), nullable=False),  # |net| / nav
         # Activity
         sa.Column("num_open_positions", sa.Integer, nullable=False, server_default="0"),
         sa.Column("num_strategies_active", sa.Integer, nullable=False, server_default="0"),
@@ -230,8 +252,12 @@ def upgrade() -> None:
         sa.Column("peak_drawdown_pct", sa.Numeric(10, 6), nullable=False, server_default="0"),
         # Source of snapshot
         sa.Column("source", sa.String(20), nullable=False),  # "ibkr"|"backtest"|"manual"
-        sa.Column("created_at", sa.DateTime(timezone=True),
-                  server_default=sa.text("NOW()"), nullable=False),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("NOW()"),
+            nullable=False,
+        ),
         schema="positions",
     )
     op.create_check_constraint(
@@ -240,11 +266,19 @@ def upgrade() -> None:
         "environment IN ('backtest', 'paper', 'live')",
         schema="positions",
     )
-    op.create_index("ix_account_summary_ts", "account_summary",
-                    ["environment", "as_of_timestamp"], schema="positions")
-    op.create_index("ix_account_summary_run", "account_summary",
-                    ["backtest_run_id"], schema="positions",
-                    postgresql_where=sa.text("backtest_run_id IS NOT NULL"))
+    op.create_index(
+        "ix_account_summary_ts",
+        "account_summary",
+        ["environment", "as_of_timestamp"],
+        schema="positions",
+    )
+    op.create_index(
+        "ix_account_summary_run",
+        "account_summary",
+        ["backtest_run_id"],
+        schema="positions",
+        postgresql_where=sa.text("backtest_run_id IS NOT NULL"),
+    )
 
     # ─────────────────────────────────────────────────────────────────────────
     # audit.roll_log
@@ -265,8 +299,8 @@ def upgrade() -> None:
         sa.Column("new_front_price_usd", sa.Numeric(18, 6), nullable=False),
         # Adjustment magnitude
         sa.Column("gap_absolute", sa.Numeric(18, 6), nullable=False),  # old - new
-        sa.Column("gap_pct", sa.Numeric(12, 8), nullable=False),       # gap / old
-        sa.Column("roll_method", sa.String(20), nullable=False),       # "back_adjusted"|"ratio_adjusted"
+        sa.Column("gap_pct", sa.Numeric(12, 8), nullable=False),  # gap / old
+        sa.Column("roll_method", sa.String(20), nullable=False),  # "back_adjusted"|"ratio_adjusted"
         # Fair-value comparison (optional — for roll cost monitoring)
         sa.Column("theoretical_fair_spread", sa.Numeric(18, 6), nullable=True),
         sa.Column("roll_cost_vs_fair_bps", sa.Numeric(10, 4), nullable=True),
@@ -276,8 +310,12 @@ def upgrade() -> None:
         sa.Column("backtest_run_id", postgresql.UUID(as_uuid=True), nullable=True),
         sa.Column("series_id", sa.String(50), nullable=True),  # groups rolls for one series build
         sa.Column("detection_method", sa.String(30), nullable=True),  # "data"|"calendar"|"explicit"
-        sa.Column("created_at", sa.DateTime(timezone=True),
-                  server_default=sa.text("NOW()"), nullable=False),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("NOW()"),
+            nullable=False,
+        ),
         schema="audit",
     )
     op.create_check_constraint(
@@ -286,11 +324,16 @@ def upgrade() -> None:
         "roll_method IN ('back_adjusted', 'ratio_adjusted')",
         schema="audit",
     )
-    op.create_index("ix_roll_log_ticker_ts", "roll_log",
-                    ["ticker", "roll_timestamp"], schema="audit")
-    op.create_index("ix_roll_log_series", "roll_log",
-                    ["series_id"], schema="audit",
-                    postgresql_where=sa.text("series_id IS NOT NULL"))
+    op.create_index(
+        "ix_roll_log_ticker_ts", "roll_log", ["ticker", "roll_timestamp"], schema="audit"
+    )
+    op.create_index(
+        "ix_roll_log_series",
+        "roll_log",
+        ["series_id"],
+        schema="audit",
+        postgresql_where=sa.text("series_id IS NOT NULL"),
+    )
 
 
 def downgrade() -> None:

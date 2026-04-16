@@ -2,13 +2,16 @@
 alembic/env.py
 Alembic migration environment configuration.
 """
+
 from __future__ import annotations
 
-from logging.config import fileConfig
-from sqlalchemy import engine_from_config, pool
-from alembic import context
 import os
 import sys
+from logging.config import fileConfig
+
+from sqlalchemy import engine_from_config, pool
+
+from alembic import context
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
@@ -19,6 +22,7 @@ if config.config_file_name is not None:
 
 # Pull database URL from environment
 from worfin.config.settings import get_settings
+
 settings = get_settings()
 config.set_main_option("sqlalchemy.url", settings.database_url)
 
