@@ -240,10 +240,7 @@ def check_telegram(send_test_message: bool = False) -> CheckResult:
             if send_test_message:
                 await bot.send_message(
                     chat_id=settings.telegram_chat_id,
-                    text=(
-                        f"🟢 WorFIn validate_env test — "
-                        f"{datetime.now(UTC).isoformat()}"
-                    ),
+                    text=(f"🟢 WorFIn validate_env test — " f"{datetime.now(UTC).isoformat()}"),
                 )
                 detail = f"bot @{me.username} authenticated; test message sent"
             return detail
