@@ -19,6 +19,13 @@ from worfin.risk.limits import (
 )
 from worfin.risk.sizing import compute_position_notional
 
+# usd_gbp_rate is now a required argument on compute_position_notional — no default.
+# Tests use a representative mid-rate. The value doesn't affect the logic being
+# tested (vol floor, robustness cap, signal scaling, liquidity discounts) because
+# those all operate in GBP notional space before the FX conversion.
+_USD_GBP = 1.27
+
+
 # ─────────────────────────────────────────────────────────────────────────────
 # VOL FLOOR TESTS (critical — this protected against March 2022 Nickel)
 # ─────────────────────────────────────────────────────────────────────────────
@@ -37,6 +44,7 @@ class TestVolFloor:
             realised_vol_20d=0.05,  # Below floor
             realised_vol_60d=0.05,
             signal=1.0,
+            usd_gbp_rate=_USD_GBP,
         )
         notional_at_floor = compute_position_notional(
             strategy_id="S4",
@@ -45,6 +53,7 @@ class TestVolFloor:
             realised_vol_20d=0.10,  # Exactly at floor
             realised_vol_60d=0.10,
             signal=1.0,
+            usd_gbp_rate=_USD_GBP,
         )
         assert (
             notional_low_vol == notional_at_floor
@@ -59,6 +68,7 @@ class TestVolFloor:
             realised_vol_20d=0.20,
             realised_vol_60d=0.20,
             signal=1.0,
+            usd_gbp_rate=_USD_GBP,
         )
         notional_at_floor = compute_position_notional(
             strategy_id="S4",
@@ -67,6 +77,7 @@ class TestVolFloor:
             realised_vol_20d=0.10,
             realised_vol_60d=0.10,
             signal=1.0,
+            usd_gbp_rate=_USD_GBP,
         )
         assert (
             notional_normal < notional_at_floor
@@ -97,6 +108,7 @@ class TestRobustnessCap:
             realised_vol_20d=0.12,  # Low 20d vol (compressed)
             realised_vol_60d=0.20,  # Higher 60d vol (captures longer-run risk)
             signal=1.0,
+            usd_gbp_rate=_USD_GBP,
         )
         # Expected: notional capped to what 60d vol (0.20) would produce
         expected_cap = compute_position_notional(
@@ -106,6 +118,7 @@ class TestRobustnessCap:
             realised_vol_20d=0.20,  # 60d vol
             realised_vol_60d=0.20,
             signal=1.0,
+            usd_gbp_rate=_USD_GBP,
         )
         assert notional <= expected_cap + Decimal(
             "0.01"
@@ -120,6 +133,7 @@ class TestRobustnessCap:
             realised_vol_20d=0.25,
             realised_vol_60d=0.15,  # Lower 60d would produce LARGER notional
             signal=1.0,
+            usd_gbp_rate=_USD_GBP,
         )
         # 60d cap would be LARGER here — so 20d result is smaller and cap doesn't bind
         notional_60d = compute_position_notional(
@@ -129,6 +143,7 @@ class TestRobustnessCap:
             realised_vol_20d=0.15,
             realised_vol_60d=0.15,
             signal=1.0,
+            usd_gbp_rate=_USD_GBP,
         )
         assert notional_uncapped <= notional_60d
 
@@ -139,7 +154,6 @@ class TestRobustnessCap:
 
 
 class TestSignalScaling:
-
     def test_zero_signal_returns_zero_notional(self):
         """No signal → no position. This is a safety property."""
         notional = compute_position_notional(
@@ -149,6 +163,7 @@ class TestSignalScaling:
             realised_vol_20d=0.15,
             realised_vol_60d=0.15,
             signal=0.0,
+            usd_gbp_rate=_USD_GBP,
         )
         assert notional == Decimal("0")
 
@@ -161,6 +176,7 @@ class TestSignalScaling:
             realised_vol_20d=0.15,
             realised_vol_60d=0.15,
             signal=1.0,
+            usd_gbp_rate=_USD_GBP,
         )
         n_half = compute_position_notional(
             strategy_id="S4",
@@ -169,6 +185,7 @@ class TestSignalScaling:
             realised_vol_20d=0.15,
             realised_vol_60d=0.15,
             signal=0.5,
+            usd_gbp_rate=_USD_GBP,
         )
         assert (
             abs(float(n_half) - float(n1) * 0.5) < 1.0
@@ -183,6 +200,7 @@ class TestSignalScaling:
             realised_vol_20d=0.15,
             realised_vol_60d=0.15,
             signal=-1.0,
+            usd_gbp_rate=_USD_GBP,
         )
         assert notional < Decimal("0"), "Negative signal must produce short (negative notional)"
 
@@ -196,6 +214,7 @@ class TestSignalScaling:
                 realised_vol_20d=0.15,
                 realised_vol_60d=0.15,
                 signal=1.5,
+                usd_gbp_rate=_USD_GBP,
             )
 
 
@@ -205,7 +224,6 @@ class TestSignalScaling:
 
 
 class TestPositionLimits:
-
     def test_notional_never_exceeds_20pct_nav(self):
         """Single-metal notional must never exceed 20% of NAV."""
         capital = 100_000
@@ -219,6 +237,7 @@ class TestPositionLimits:
             realised_vol_20d=VOL_FLOOR,  # Smallest vol → biggest position
             realised_vol_60d=VOL_FLOOR,
             signal=1.0,
+            usd_gbp_rate=_USD_GBP,
         )
         assert (
             float(notional) <= max_allowed + 0.01
@@ -234,6 +253,7 @@ class TestPositionLimits:
             realised_vol_20d=0.20,
             realised_vol_60d=0.20,
             signal=0.10,  # Small signal on small capital
+            usd_gbp_rate=_USD_GBP,
         )
         assert notional == Decimal("0"), f"Sub-minimum notional should return 0, got {notional}"
 
@@ -244,7 +264,6 @@ class TestPositionLimits:
 
 
 class TestLiquidityDiscount:
-
     def test_tier3_position_smaller_than_tier1(self):
         """Tier 3 metals (Sn, Pd) should produce smaller positions than Tier 1."""
         gold_notional = compute_position_notional(
@@ -254,6 +273,7 @@ class TestLiquidityDiscount:
             realised_vol_20d=0.15,
             realised_vol_60d=0.15,
             signal=1.0,
+            usd_gbp_rate=_USD_GBP,
         )
         palladium_notional = compute_position_notional(
             strategy_id="S4",
@@ -262,6 +282,7 @@ class TestLiquidityDiscount:
             realised_vol_20d=0.15,
             realised_vol_60d=0.15,
             signal=1.0,
+            usd_gbp_rate=_USD_GBP,
         )
         assert float(palladium_notional) < float(
             gold_notional
@@ -277,6 +298,7 @@ class TestLiquidityDiscount:
             realised_vol_20d=0.15,
             realised_vol_60d=0.15,
             signal=1.0,
+            usd_gbp_rate=_USD_GBP,
         )
         palladium_n = compute_position_notional(
             strategy_id="S4",
@@ -285,6 +307,7 @@ class TestLiquidityDiscount:
             realised_vol_20d=0.15,
             realised_vol_60d=0.15,
             signal=1.0,
+            usd_gbp_rate=_USD_GBP,
         )
         # Palladium should be 50% of Gold (Tier 3 discount = 0.50)
         ratio = float(palladium_n) / float(gold_n)
@@ -297,7 +320,6 @@ class TestLiquidityDiscount:
 
 
 class TestStrategyAllocations:
-
     def test_allocations_sum_to_one(self):
         """All strategy allocations must sum to exactly 1.0."""
         total = sum(STRATEGY_ALLOCATION.values())
