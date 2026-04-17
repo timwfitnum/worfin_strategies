@@ -10,6 +10,11 @@ Key protections:
   - 60d robustness cap: never exceed what 60d vol would produce
   - Liquidity discount: reduces exposure to illiquid metals
   - Min/max notional guardrails
+
+FX RATE CONVENTION:
+  usd_gbp_rate is REQUIRED on all public functions — no default.
+  Callers must fetch a live rate from worfin.data.ingestion.fx_rates.get_usd_gbp().
+  This prevents silently using a stale hardcoded rate in backtests or live trading.
 """
 
 from __future__ import annotations
@@ -43,7 +48,7 @@ def compute_position_notional(
     realised_vol_20d: float,
     realised_vol_60d: float,
     signal: float,
-    usd_gbp_rate: float = 1.27,
+    usd_gbp_rate: float,   # REQUIRED — fetch from data.ingestion.fx_rates.get_usd_gbp()
 ) -> Decimal:
     """
     Compute target position notional in GBP for a given metal/strategy.
@@ -55,7 +60,8 @@ def compute_position_notional(
         realised_vol_20d:  Trailing 20-day annualised vol (as decimal, e.g. 0.15)
         realised_vol_60d:  Trailing 60-day annualised vol (as decimal, e.g. 0.18)
         signal:            Normalised signal in [-1, +1]
-        usd_gbp_rate:      USD/GBP FX rate for notional conversion
+        usd_gbp_rate:      USD/GBP FX rate (1 GBP = X USD).
+                           Must be fetched fresh — no hardcoded default.
 
     Returns:
         Signed notional in GBP (positive = long, negative = short).
@@ -83,64 +89,46 @@ def compute_position_notional(
 
     if realised_vol_20d < VOL_FLOOR:
         logger.warning(
-            "Vol floor applied: %s 20d vol %.1f%% < floor %.1f%%. "
-            "Using floor. Investigate if sustained.",
+            "Vol floor applied: %s 20d vol %.1f%% < floor %.1f%%. Using floor.",
             ticker,
             realised_vol_20d * 100,
             VOL_FLOOR * 100,
         )
 
-    # ── Step 2: PRIMARY SIZING FORMULA ──────────────────────────────────────
-    # Position_Notional = (target_vol / effective_vol) × capital_allocated
-    # This ensures each position contributes equally to risk budget
-    raw_notional = (target_vol / effective_vol_20d) * capital_allocated
+    # ── Step 2: PRIMARY SIZING ───────────────────────────────────────────────
+    # notional = (target_vol × capital_allocated) / effective_vol
+    notional_20d = (target_vol * capital_allocated) / effective_vol_20d
 
-    # ── Step 3: ROBUSTNESS CAP (60-day) ─────────────────────────────────────
-    # Never exceed what the 60-day vol estimate would produce.
-    # Prevents oversizing when short-term vol is temporarily compressed
-    # but the 60d estimate correctly captures longer-run risk.
-    cap_notional_60d = (target_vol / effective_vol_60d) * capital_allocated
-    notional = min(raw_notional, cap_notional_60d)
+    # ── Step 3: 60d ROBUSTNESS CAP ───────────────────────────────────────────
+    # Never exceed what 60d vol would produce.
+    # Prevents outsizing during short-term vol compression.
+    notional_60d_cap = (target_vol * capital_allocated) / effective_vol_60d
+    notional = min(notional_20d, notional_60d_cap)
 
-    if notional < raw_notional:
-        logger.debug(
-            "%s: 60d robustness cap applied (20d would have given %.0f GBP, " "capped to %.0f GBP)",
-            ticker,
-            raw_notional,
-            notional,
-        )
+    # ── Step 4: SINGLE-METAL CAP ─────────────────────────────────────────────
+    single_metal_cap = total_capital_gbp * MAX_SINGLE_METAL_PCT
+    notional = min(notional, single_metal_cap)
 
-    # ── Step 4: LIQUIDITY DISCOUNT ───────────────────────────────────────────
-    discount = _LIQUIDITY_DISCOUNT[metal.liquidity_tier]
+    # ── Step 5: LIQUIDITY DISCOUNT ────────────────────────────────────────────
+    tier = int(metal.liquidity_tier)
+    discount = _LIQUIDITY_DISCOUNT.get(tier, 0.50)
     notional *= discount
 
-    # ── Step 5: SIGNAL SCALING ───────────────────────────────────────────────
-    # Scale by signal strength — a signal of 0.5 gives 50% of max notional
+    # ── Step 6: SIGNAL SCALING ────────────────────────────────────────────────
+    # Scale by signal magnitude and apply direction
     notional *= abs(signal)
+    signed_notional = notional if signal > 0 else -notional
 
-    # ── Step 6: NAV CONCENTRATION CAP ───────────────────────────────────────
-    max_allowed = total_capital_gbp * MAX_SINGLE_METAL_PCT
-    if notional > max_allowed:
-        logger.warning(
-            "%s: Notional £%.0f exceeds max single-metal limit £%.0f — capping.",
-            ticker,
-            notional,
-            max_allowed,
-        )
-        notional = max_allowed
-
-    # ── Step 7: MINIMUM SIZE CHECK ───────────────────────────────────────────
-    if notional < MIN_POSITION_NOTIONAL_GBP:
+    # ── Step 7: MINIMUM NOTIONAL CHECK ───────────────────────────────────────
+    if abs(signed_notional) < MIN_POSITION_NOTIONAL_GBP:
         logger.debug(
-            "%s: Notional £%.0f below minimum £%.0f — returning 0.",
+            "%s/%s: notional £%.0f below minimum £%.0f — returning zero.",
+            strategy_id,
             ticker,
-            notional,
+            abs(signed_notional),
             MIN_POSITION_NOTIONAL_GBP,
         )
         return Decimal("0")
-
-    # ── Step 8: APPLY DIRECTION FROM SIGNAL ─────────────────────────────────
-    signed_notional = notional * (1 if signal > 0 else -1)
 
     return Decimal(str(round(signed_notional, 2)))
 
@@ -153,17 +141,18 @@ def compute_lots(
     realised_vol_60d: float,
     signal: float,
     current_price_usd: float,
-    usd_gbp_rate: float = 1.27,
+    usd_gbp_rate: float,   # REQUIRED — fetch from data.ingestion.fx_rates.get_usd_gbp()
 ) -> int:
     """
-    Compute integer number of lots (signed: positive=long, negative=short).
+    Compute the signed lot count for a proposed position.
 
     This is the function to call before placing orders.
     Always rounds toward zero (conservative — never over-sizes).
 
     Args:
         current_price_usd: Current front-month price in USD/unit
-        usd_gbp_rate:      To convert USD notional to GBP for NAV comparisons
+        usd_gbp_rate:      USD per GBP (e.g. 1.27).
+                           Must be fetched fresh — no hardcoded default.
 
     Returns:
         Signed lot count (0 if position too small to be meaningful)
@@ -197,7 +186,7 @@ def compute_portfolio_sizing(
     vol_estimates: dict[str, dict[str, float]],
     prices: dict[str, float],
     total_capital_gbp: float,
-    usd_gbp_rate: float = 1.27,
+    usd_gbp_rate: float,   # REQUIRED — fetch from data.ingestion.fx_rates.get_usd_gbp()
 ) -> dict[str, dict[str, int]]:
     """
     Compute full portfolio sizing across all strategies and metals.
@@ -207,6 +196,7 @@ def compute_portfolio_sizing(
         vol_estimates:    {ticker: {"vol_20d": float, "vol_60d": float}}
         prices:           {ticker: current_price_usd}
         total_capital_gbp: Total NAV in GBP
+        usd_gbp_rate:     USD per GBP. Must be fetched fresh.
 
     Returns:
         {strategy_id: {ticker: lots}}
@@ -217,7 +207,9 @@ def compute_portfolio_sizing(
         result[strategy_id] = {}
         for ticker, signal in signals.items():
             if ticker not in vol_estimates or ticker not in prices:
-                logger.warning("Missing vol or price data for %s — skipping sizing.", ticker)
+                logger.warning(
+                    "Missing vol or price data for %s — skipping sizing.", ticker
+                )
                 result[strategy_id][ticker] = 0
                 continue
 

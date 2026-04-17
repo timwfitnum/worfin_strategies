@@ -10,7 +10,7 @@ Sources:
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import Enum
 
 
@@ -20,33 +20,38 @@ class Exchange(str, Enum):
 
 
 class LiquidityTier(int, Enum):
-    HIGH = 1  # Tightest spreads, deepest book, max 5% ADV
+    HIGH = 1    # Tightest spreads, deepest book, max 5% ADV
     MEDIUM = 2  # Moderate spreads, max 3% ADV
-    LOW = 3  # Widest spreads, max 2% ADV — extra caution
+    LOW = 3     # Widest spreads, max 2% ADV — extra caution
 
 
 @dataclass(frozen=True)
 class MetalSpec:
     """Immutable specification for a single metal futures contract."""
 
-    ticker: str  # Internal ticker (e.g., "CA" for LME Copper)
-    name: str  # Full name
+    ticker: str           # Internal ticker (e.g., "CA" for LME Copper)
+    name: str             # Full name
     exchange: Exchange
-    lot_size: float  # Contract lot size in base unit
-    unit: str  # "tonnes", "oz", etc.
-    quote_currency: str  # Always USD
-    tick_size: float  # Minimum price move
-    tick_value: float  # USD value of one tick per contract
+    lot_size: float       # Contract lot size in base unit
+    unit: str             # "tonnes", "oz", etc.
+    quote_currency: str   # Always USD
+    tick_size: float      # Minimum price move
+    tick_value: float     # USD value of one tick per contract
     liquidity_tier: LiquidityTier
-    ibkr_symbol: str  # Symbol as used in IBKR
-    ibkr_exchange: str  # Exchange as IBKR expects it
-    ibkr_currency: str  # Contract currency
+    ibkr_symbol: str      # Symbol as used in IBKR
+    ibkr_exchange: str    # Exchange as IBKR expects it
+    ibkr_currency: str    # Contract currency
     # Roll mechanics
     roll_days_before_fnc: int  # Days before First Notice/Cash prompt to roll
     # Execution costs (round-trip basis points)
     spread_bps: float
-    commission_usd: float  # Per contract, round-trip
+    commission_usd: float   # Per contract, round-trip
     slippage_bps: float
+    # Typical average daily volume in lots — used as ADV fallback when
+    # live/historical volume data is sparse or missing (e.g. LME CHRIS
+    # series often has zero/NaN volume). Set conservatively.
+    # Sources: LME average daily volume reports, CME Group volume statistics.
+    typical_adv_lots: int = field(default=0)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -64,15 +69,16 @@ COPPER = MetalSpec(
     unit="tonnes",
     quote_currency="USD",
     tick_size=0.50,
-    tick_value=12.50,  # $0.50/tonne × 25 tonnes
+    tick_value=12.50,        # $0.50/tonne × 25 tonnes
     liquidity_tier=LiquidityTier.HIGH,
     ibkr_symbol="HG",
-    ibkr_exchange="NYMEX",  # IBKR routes LME metals via CME equivalent
+    ibkr_exchange="NYMEX",   # IBKR routes LME metals via CME equivalent
     ibkr_currency="USD",
     roll_days_before_fnc=3,
     spread_bps=3.0,
     commission_usd=3.00,
     slippage_bps=0.75,
+    typical_adv_lots=2000,   # LME Copper: ~50,000 lots/day; conservative 4% clip
 )
 
 ALUMINIUM = MetalSpec(
@@ -92,6 +98,7 @@ ALUMINIUM = MetalSpec(
     spread_bps=3.0,
     commission_usd=3.00,
     slippage_bps=0.75,
+    typical_adv_lots=3000,   # LME Aluminium: highest volume LME metal
 )
 
 ZINC = MetalSpec(
@@ -111,6 +118,7 @@ ZINC = MetalSpec(
     spread_bps=4.0,
     commission_usd=3.00,
     slippage_bps=1.00,
+    typical_adv_lots=1500,   # LME Zinc: good liquidity, below Cu/Al
 )
 
 NICKEL = MetalSpec(
@@ -121,7 +129,7 @@ NICKEL = MetalSpec(
     unit="tonnes",
     quote_currency="USD",
     tick_size=1.00,
-    tick_value=6.00,  # $1/tonne × 6 tonnes
+    tick_value=6.00,         # $1/tonne × 6 tonnes
     liquidity_tier=LiquidityTier.MEDIUM,
     ibkr_symbol="NI",
     ibkr_exchange="ICEEU",
@@ -133,6 +141,7 @@ NICKEL = MetalSpec(
     # ⚠️ NICKEL WARNING: March 2022 — LME suspended trading and cancelled
     # trades after a 250% intraday spike. Size conservatively.
     # The 10% vol FLOOR in risk/limits.py is critical for Nickel.
+    typical_adv_lots=500,    # Post-squeeze: reduced from pre-2022 levels
 )
 
 LEAD = MetalSpec(
@@ -152,6 +161,7 @@ LEAD = MetalSpec(
     spread_bps=5.0,
     commission_usd=3.00,
     slippage_bps=1.50,
+    typical_adv_lots=800,    # LME Lead: moderate liquidity
 )
 
 TIN = MetalSpec(
@@ -172,8 +182,11 @@ TIN = MetalSpec(
     commission_usd=3.00,
     slippage_bps=5.00,
     # ⚠️ TIN WARNING: Extremely thin order book (3–5 lots per side typical).
-    # Always check book depth before executing. Use smallest lot clips.
+    # The typical_adv_lots is intentionally conservative — ADV can be much
+    # lower on quiet days. Never trade > 2% of ADV.
+    typical_adv_lots=50,     # Very conservative — book is genuinely thin
 )
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # COMEX PRECIOUS METALS
@@ -190,7 +203,7 @@ GOLD = MetalSpec(
     unit="oz",
     quote_currency="USD",
     tick_size=0.10,
-    tick_value=10.00,  # $0.10/oz × 100 oz
+    tick_value=10.00,        # $0.10/oz × 100 oz
     liquidity_tier=LiquidityTier.HIGH,
     ibkr_symbol="GC",
     ibkr_exchange="NYMEX",
@@ -199,6 +212,7 @@ GOLD = MetalSpec(
     spread_bps=2.0,
     commission_usd=3.00,
     slippage_bps=0.75,
+    typical_adv_lots=3000,   # COMEX Gold: among the most liquid futures globally
 )
 
 SILVER = MetalSpec(
@@ -209,7 +223,7 @@ SILVER = MetalSpec(
     unit="oz",
     quote_currency="USD",
     tick_size=0.005,
-    tick_value=25.00,  # $0.005/oz × 5000 oz
+    tick_value=25.00,        # $0.005/oz × 5000 oz
     liquidity_tier=LiquidityTier.HIGH,
     ibkr_symbol="SI",
     ibkr_exchange="NYMEX",
@@ -218,6 +232,7 @@ SILVER = MetalSpec(
     spread_bps=3.0,
     commission_usd=3.00,
     slippage_bps=1.00,
+    typical_adv_lots=1500,   # COMEX Silver: high volume but wider than Gold
 )
 
 PLATINUM = MetalSpec(
@@ -237,6 +252,7 @@ PLATINUM = MetalSpec(
     spread_bps=6.0,
     commission_usd=3.00,
     slippage_bps=2.00,
+    typical_adv_lots=200,    # COMEX Platinum: thin — conservative
 )
 
 PALLADIUM = MetalSpec(
@@ -258,7 +274,9 @@ PALLADIUM = MetalSpec(
     slippage_bps=3.00,
     # ⚠️ PALLADIUM WARNING: Pt/Pd cointegration broke down 2017–2021.
     # Always run ADF test before trading S6 Pairs for this pair.
+    typical_adv_lots=100,    # COMEX Palladium: very thin — use with care
 )
+
 
 # ─────────────────────────────────────────────────────────────────────────────
 # UNIVERSE COLLECTIONS
@@ -307,9 +325,9 @@ S6_PAIRS = [
 # ─────────────────────────────────────────────────────────────────────────────
 
 EXECUTION_WINDOWS = {
-    "LME_BASE": {"start_hour": 14, "start_min": 0, "end_hour": 16, "end_min": 0},
+    "LME_BASE":       {"start_hour": 14, "start_min": 0, "end_hour": 16, "end_min": 0},
     "COMEX_PRECIOUS": {"start_hour": 14, "start_min": 0, "end_hour": 16, "end_min": 0},
-    "COMEX_PT_PD": {"start_hour": 14, "start_min": 30, "end_hour": 15, "end_min": 30},
+    "COMEX_PT_PD":    {"start_hour": 14, "start_min": 30, "end_hour": 15, "end_min": 30},
 }
 
 # LME Ring closes (official settlement prices set)
@@ -327,7 +345,9 @@ S5_EXECUTION_DELAY_MINUTES = 30
 def get_metal(ticker: str) -> MetalSpec:
     """Retrieve metal spec by ticker. Raises KeyError for unknown tickers."""
     if ticker not in ALL_METALS:
-        raise KeyError(f"Unknown metal ticker: {ticker!r}. Valid tickers: {list(ALL_METALS)}")
+        raise KeyError(
+            f"Unknown metal ticker: {ticker!r}. Valid tickers: {list(ALL_METALS)}"
+        )
     return ALL_METALS[ticker]
 
 
@@ -343,7 +363,10 @@ def get_lots_for_notional(ticker: str, price: float, target_notional: float) -> 
     Always rounds DOWN to stay within risk limits.
     Returns 0 if notional is too small for even one lot.
     """
-    if price <= 0 or target_notional <= 0:
+    spec = get_metal(ticker)
+    if price <= 0:
         return 0
-    lot_notional = get_lot_notional(ticker, price)
-    return int(target_notional / lot_notional)  # floor division
+    per_lot = spec.lot_size * price
+    if per_lot <= 0 or target_notional < per_lot:
+        return 0
+    return int(target_notional // per_lot)

@@ -1,20 +1,35 @@
 """
 backtest/pretrade_integration.py
-Wiring module that connects the backtest engine to PreTradeChecker.
+Pre-trade integration layer for the backtesting engine.
 
-The engine calls into this module once per rebalance:
-  1. build_portfolio_state()      → constructs PortfolioState from simulated book
-  2. compute_trailing_adv()       → rolling 20-day ADV per ticker, with fallback
-  3. run_pretrade_checks()        → runs each proposed trade through the checker
-  4. log_rejection()              → writes rejected trades to audit.risk_breaches
+PURPOSE:
+  Bridges the walk-forward backtesting engine and the production pre-trade
+  checker (execution/pretrade_checks.py). The engine calls this module once
+  per rebalance day to filter proposed trades through the same 8 pre-trade
+  checks that the live execution engine uses.
 
-Rejected trades do NOT execute. The ticker keeps yesterday's position; no
-phantom fill is recorded in positions.trades.
+  This means backtest results account for:
+    - Position size limits (single-metal 20% NAV cap)
+    - Gross/net exposure limits
+    - Liquidity constraints (ADV %)
+    - Fat-finger protection (order price vs mid)
+    - Signal staleness
+  All of which affect real P&L but are often ignored in naive backtests.
+
+VOLUME DATA:
+  Nasdaq Data Link CHRIS series sometimes has zero/NaN volume for LME metals.
+  If more than ADV_RELIABILITY_THRESHOLD of bars are zero/NaN we fall back
+  to MetalSpec.typical_adv_lots — a conservative but non-zero estimate.
+  This prevents the liquidity check silently SKIP-ing and giving false
+  confidence.
+
+LOOK-AHEAD BIAS:
+  All ADV and vol computations use `df[df.index <= as_of_ts]` — same
+  strict slice convention as the engine. No future data leaks in.
 """
 
 from __future__ import annotations
 
-import json
 import logging
 from collections.abc import Mapping
 from dataclasses import dataclass
@@ -22,7 +37,6 @@ from datetime import UTC, datetime
 
 import numpy as np
 import pandas as pd
-from sqlalchemy import text
 from sqlalchemy.engine import Engine
 
 from worfin.config.metals import ALL_METALS, get_metal
@@ -34,25 +48,26 @@ from worfin.execution.pretrade_checks import (
 
 logger = logging.getLogger(__name__)
 
-# ADV reliability threshold — if more than 50% of the lookback window is
-# zero/NaN volume, we fall back to the conservative typical_adv_lots from
-# the metal spec rather than return a nonsense rolling mean.
-ADV_RELIABILITY_THRESHOLD = 0.50
-ADV_LOOKBACK_DAYS = 20
+# ─────────────────────────────────────────────────────────────────────────────
+# CONSTANTS
+# ─────────────────────────────────────────────────────────────────────────────
+
+ADV_LOOKBACK_DAYS: int = 20    # Trading days used to compute rolling ADV
+ADV_RELIABILITY_THRESHOLD: float = 0.50  # If >50% bars are zero/NaN → fallback
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# ADV COMPUTATION
+# VOLUME / ADV HELPERS
 # ─────────────────────────────────────────────────────────────────────────────
 
 
-def compute_trailing_adv(
+def compute_adv(
     price_data: Mapping[str, pd.DataFrame],
     as_of_ts: pd.Timestamp,
     lookback_days: int = ADV_LOOKBACK_DAYS,
 ) -> dict[str, float]:
     """
-    Compute trailing ADV (average daily volume, in lots) per ticker.
+    Compute rolling average daily volume (in lots) per ticker.
 
     NASDAQ DATA LINK CAVEAT:
       Volume data for LME metals is sometimes missing or zero. If more than
@@ -114,7 +129,7 @@ def _typical_adv_fallback(ticker: str, reason: str) -> float:
     """
     metal = ALL_METALS.get(ticker)
     fallback = getattr(metal, "typical_adv_lots", None) if metal else None
-    if fallback is None:
+    if fallback is None or fallback <= 0:
         logger.warning(
             "%s: no volume data (%s) AND no typical_adv_lots on MetalSpec — "
             "liquidity check will SKIP. Add typical_adv_lots to metals.py.",
@@ -125,7 +140,7 @@ def _typical_adv_fallback(ticker: str, reason: str) -> float:
     logger.debug(
         "%s: using typical_adv_lots=%.0f (reason: %s)",
         ticker,
-        fallback,
+        float(fallback),
         reason,
     )
     return float(fallback)
@@ -196,8 +211,8 @@ class TradeDecision:
 
 def run_pretrade_checks(
     checker: PreTradeChecker,
-    proposed_deltas: Mapping[str, int],  # {ticker: lots_delta from current}
-    current_lots: Mapping[str, int],  # yesterday's lots per ticker
+    proposed_deltas: Mapping[str, int],   # {ticker: lots_delta from current}
+    current_lots: Mapping[str, int],      # yesterday's lots per ticker
     prices_usd: Mapping[str, float],
     signals: Mapping[str, float],
     signal_timestamp: datetime,
@@ -230,6 +245,7 @@ def run_pretrade_checks(
                 )
             )
             continue
+
         if ticker not in prices_usd:
             logger.warning("No price for %s at check time — skipping trade.", ticker)
             continue
@@ -246,7 +262,7 @@ def run_pretrade_checks(
             proposed_lots=lots_delta,
             proposed_notional_usd=proposed_notional_usd * (1 if lots_delta > 0 else -1),
             current_mid_price=price,
-            order_price=price,  # backtest uses mark as fill price
+            order_price=price,          # backtest uses mark as fill price
             signal_timestamp=signal_timestamp,
             signal_direction=signal_direction,
             portfolio=portfolio,
@@ -298,13 +314,17 @@ def log_rejections_to_audit(
     If engine is None (pure in-memory run), we only log via the logger and
     skip the DB write.
     """
+    from sqlalchemy import text
+
     rejected = [d for d in decisions if not d.approved and d.proposed_lots != 0]
     if not rejected:
         return
 
     # Always log to logger first — audit-write failures must not mask rejections
     for d in rejected:
-        fails = ", ".join(f"{c.check_name}={c.message}" for c in d.pretrade_result.failed_checks)
+        fails = ", ".join(
+            f"{c.check_name}={c.message}" for c in d.pretrade_result.failed_checks
+        )
         logger.warning(
             "BACKTEST REJECTION: %s %s %+d lots — %s (run=%s)",
             d.strategy_id,
@@ -327,42 +347,39 @@ def log_rejections_to_audit(
                         "breach_type": f"pretrade_{failed.check_name}",
                         "action_taken": "trade_rejected_backtest",
                         "threshold": (
-                            float(failed.limit_value) if failed.limit_value is not None else None
+                            float(failed.limit_value)
+                            if failed.limit_value is not None
+                            else None
                         ),
                         "actual_value": (
-                            float(failed.actual_value) if failed.actual_value is not None else None
+                            float(failed.actual_value)
+                            if failed.actual_value is not None
+                            else None
                         ),
                         "strategy_id": d.strategy_id,
                         "ticker": d.ticker,
                         "message": (
-                            f"Pre-trade check '{failed.check_name}' failed: {failed.message}. "
+                            f"Pre-trade check '{failed.check_name}' failed: "
+                            f"{failed.message}. "
                             f"Proposed {d.proposed_lots:+d} lots rejected."
-                        ),
-                        "source": "backtest",
-                        "backtest_run_id": backtest_run_id,
-                        "context_json": json.dumps(
-                            {
-                                "proposed_lots": d.proposed_lots,
-                                "check_name": failed.check_name,
-                            }
                         ),
                     }
                 )
-        if not rows:
-            return
-        stmt = text(
-            """
-            INSERT INTO audit.risk_breaches
-              (breach_timestamp, breach_type, action_taken, threshold, actual_value,
-               strategy_id, ticker, message, source, backtest_run_id, context_json,
-               created_at)
-            VALUES
-              (:breach_timestamp, :breach_type, :action_taken, :threshold, :actual_value,
-               :strategy_id, :ticker, :message, :source, :backtest_run_id, :context_json,
-               NOW())
-        """
+        if rows:
+            sql = text(
+                """
+                INSERT INTO audit.risk_breaches
+                    (breach_timestamp, breach_type, action_taken, threshold,
+                     actual_value, strategy_id, ticker, message)
+                VALUES
+                    (:breach_timestamp, :breach_type, :action_taken, :threshold,
+                     :actual_value, :strategy_id, :ticker, :message)
+                """
+            )
+            with engine.begin() as conn:
+                conn.execute(sql, rows)
+    except Exception:
+        logger.exception(
+            "Failed to write %d rejection(s) to audit.risk_breaches — continuing.",
+            len(rejected),
         )
-        with engine.begin() as conn:
-            conn.execute(stmt, rows)
-    except Exception as exc:
-        logger.error("Failed to write backtest rejections to audit.risk_breaches: %s", exc)

@@ -22,7 +22,7 @@ from __future__ import annotations
 VOL_FLOOR: float = 0.10  # 10% annualised — NEVER go below this
 
 # Alert thresholds: actual vol vs strategy target vol
-VOL_ALERT_MULTIPLIER: float = 1.5  # Alert if 20d vol > 1.5× target (Day 1/5)
+VOL_ALERT_MULTIPLIER: float = 1.5   # Alert if 20d vol > 1.5× target (Day 1/5)
 VOL_REDUCE_MULTIPLIER: float = 2.0  # Halve allocation if > 2× target
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -74,8 +74,8 @@ WEEKLY_SCALE_UP_PER_DAY: float = 0.10  # +10% per day back to 100%
 
 # Reinstatement schedule after peak drawdown suspension
 PEAK_DRAWDOWN_RESTART_PCT: float = 0.25  # Restart at 25%
-PEAK_DRAWDOWN_SCALE_UP_DAYS: int = 40  # Scale over 40 trading days
-PEAK_DRAWDOWN_COOL_OFF_DAYS: int = 10  # Min 10 days before restart
+PEAK_DRAWDOWN_SCALE_UP_DAYS: int = 40   # Scale over 40 trading days
+PEAK_DRAWDOWN_COOL_OFF_DAYS: int = 10   # Min 10 days before restart
 
 # ─────────────────────────────────────────────────────────────────────────────
 # STRATEGY-LEVEL DRAWDOWN BUDGETS
@@ -94,7 +94,7 @@ STRATEGY_DRAWDOWN_BUDGET: dict[str, float] = {
 }
 
 STRATEGY_RESTART_PCT: float = 0.50  # Restart at 50% of normal risk budget
-STRATEGY_SCALE_UP_DAYS: int = 20  # Scale back to 100% over 20 trading days
+STRATEGY_SCALE_UP_DAYS: int = 20    # Scale back to 100% over 20 trading days
 
 # ─────────────────────────────────────────────────────────────────────────────
 # LIQUIDITY LIMITS
@@ -150,9 +150,40 @@ MARKET_ORDER_RATE_ALERT: float = 0.10  # 10%
 SLIPPAGE_ALERT_MULTIPLIER: float = 2.0
 
 # ─────────────────────────────────────────────────────────────────────────────
+# FX RATE STALENESS
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Maximum calendar days the USD/GBP rate may be stale before raising
+# FxRateUnavailable. FRED DEXUSUK has gaps on US bank holidays — 5 days
+# covers a long weekend plus one contingency day without over-relaxing
+# for genuine outages.
+FX_RATE_MAX_STALENESS_DAYS: int = 5
+
+# ─────────────────────────────────────────────────────────────────────────────
+# DATA QUALITY THRESHOLDS
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Price staleness — alert if price not updated for this many trading days
+MAX_STALENESS_TRADING_DAYS: int = 1
+
+# Outlier detection — flag if daily return exceeds this z-score
+# NOTE: 4σ is a flag, not auto-discard — human investigation required
+OUTLIER_THRESHOLD_SIGMA: float = 4.0
+
+# Cross-source price discrepancy alert
+PRICE_DISCREPANCY_THRESHOLD: float = 0.005  # 0.5%
+
+# ─────────────────────────────────────────────────────────────────────────────
+# RECONCILIATION THRESHOLDS
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Block new orders if position discrepancy exceeds either threshold
+RECONCILIATION_VALUE_THRESHOLD_GBP: float = 100.0  # £100
+RECONCILIATION_PCT_THRESHOLD: float = 0.001         # 0.1% of position notional
+
+# ─────────────────────────────────────────────────────────────────────────────
 # STRATEGY TARGET VOLATILITIES
 # ─────────────────────────────────────────────────────────────────────────────
-# Annualised per-position target volatility used in sizing formula.
 # These drive: Position_Notional = (target_vol × allocation) / realised_vol
 
 STRATEGY_TARGET_VOL: dict[str, float] = {
@@ -179,29 +210,9 @@ STRATEGY_ALLOCATION: dict[str, float] = {
     "S6": 0.10,  # 10% — Pairs
 }
 
-assert abs(sum(STRATEGY_ALLOCATION.values()) - 1.0) < 1e-10, "Strategy allocations must sum to 1.0"
-
-# ─────────────────────────────────────────────────────────────────────────────
-# DATA QUALITY THRESHOLDS
-# ─────────────────────────────────────────────────────────────────────────────
-
-# Price staleness — alert if price not updated for this many trading days
-MAX_STALENESS_TRADING_DAYS: int = 1
-
-# Outlier detection — flag if daily return exceeds this z-score
-# NOTE: 4σ is a flag, not auto-discard — human investigation required
-OUTLIER_THRESHOLD_SIGMA: float = 4.0
-
-# Cross-source price discrepancy alert
-PRICE_DISCREPANCY_THRESHOLD: float = 0.005  # 0.5%
-
-# ─────────────────────────────────────────────────────────────────────────────
-# RECONCILIATION THRESHOLDS
-# ─────────────────────────────────────────────────────────────────────────────
-
-# Block new orders if position discrepancy exceeds either threshold
-RECONCILIATION_VALUE_THRESHOLD_GBP: float = 100.0  # £100
-RECONCILIATION_PCT_THRESHOLD: float = 0.001  # 0.1% of position notional
+assert (
+    abs(sum(STRATEGY_ALLOCATION.values()) - 1.0) < 1e-10
+), "Strategy allocations must sum to 1.0"
 
 # ─────────────────────────────────────────────────────────────────────────────
 # KILL SWITCH

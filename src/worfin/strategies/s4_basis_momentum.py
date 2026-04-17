@@ -33,14 +33,20 @@ ALLOCATION: 25% of total capital (largest single strategy)
 from __future__ import annotations
 
 import logging
-from datetime import date
+from datetime import datetime  # FIX: was `date` — all public methods need datetime
 
 import numpy as np
 import pandas as pd
 
 from worfin.config.calendar import get_lme_3m_dte
 from worfin.config.metals import S4_UNIVERSE, Exchange, get_metal
-from worfin.strategies.base import BaseStrategy, SignalResult, StrategyConfig
+from worfin.strategies.base import (
+    BarSize,          # FIX: was not imported
+    BaseStrategy,
+    Frequency,        # FIX: was not imported
+    SignalResult,
+    StrategyConfig,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -53,17 +59,19 @@ S4_CONFIG = StrategyConfig(
     strategy_id="S4",
     name="Basis-Momentum",
     universe=S4_UNIVERSE,
+    frequency=Frequency.DAILY,      # FIX: was missing (required field)
+    bar_size=BarSize.DAILY,         # FIX: was missing (required field)
     rebalance_freq="biweekly",
-    target_vol=0.11,  # 11% annualised per-strategy vol target
-    max_drawdown_budget=0.15,  # Suspend if 15% drawdown from HWM
-    min_history_days=70,  # Need 65 days for momentum + 5-day skip
+    target_vol=0.11,
+    max_drawdown_budget=0.15,
+    min_history_bars=70,            # FIX: was min_history_days (wrong field name)
     parameters={
-        "carry_weight": 0.50,  # Weight on carry sub-signal
-        "momentum_weight": 0.50,  # Weight on momentum sub-signal
-        "interaction_weight": 0.25,  # Weight on carry × momentum interaction
-        "momentum_lookback": 60,  # Days for momentum lookback
-        "momentum_skip": 5,  # Days to skip (short-term reversal avoidance)
-        "zscore_clip": 2.0,  # Clip z-scores at ±2 before normalising
+        "carry_weight": 0.50,
+        "momentum_weight": 0.50,
+        "interaction_weight": 0.25,
+        "momentum_lookback": 60,
+        "momentum_skip": 5,
+        "zscore_clip": 2.0,
     },
 )
 
@@ -73,12 +81,12 @@ class BasisMomentumStrategy(BaseStrategy):
     Strategy S4: Basis-Momentum
 
     Required data columns per ticker DataFrame:
-        - "close": Daily settlement price (front-month or Cash)
+        - "close":      Daily settlement price (front-month or Cash)
         - "cash_price": LME Cash price (for LME metals) OR front-month (COMEX)
-        - "f3m_price": LME 3-Month price (for LME) OR second-month (COMEX)
-        - "trade_date": Date of the price observation
+        - "f3m_price":  LME 3-Month price (for LME) OR second-month (COMEX)
+        - "f3m_dte":    Days-to-expiry for COMEX (optional; fallback is 91)
 
-    The DataFrame must be indexed by date (pd.DatetimeIndex).
+    The DataFrame must be indexed by DatetimeIndex (UTC-aware).
     """
 
     def __init__(self, config: StrategyConfig = S4_CONFIG) -> None:
@@ -88,17 +96,18 @@ class BasisMomentumStrategy(BaseStrategy):
     def validate_inputs(
         self,
         data: dict[str, pd.DataFrame],
-        as_of_date: date,
+        as_of: datetime,              # FIX: was `as_of_date: date`
     ) -> tuple[bool, list[str]]:
         """
         Validates:
           1. All required columns present
-          2. Sufficient history for momentum lookback
-          3. No NaN in cash/3M prices on as_of_date
+          2. Sufficient history for momentum lookback (min_history_bars)
+          3. No NaN in cash/3M/close prices on the last bar up to as_of
           4. Positive prices (sanity check)
         """
-        invalid = self._check_min_history(data, as_of_date)
+        invalid = self._check_min_history(data, as_of)   # FIX: was as_of_date
         required_cols = {"close", "cash_price", "f3m_price"}
+        as_of_ts = pd.Timestamp(as_of)                   # FIX: now datetime → tz-aware Timestamp
 
         for ticker in self.universe:
             if ticker in invalid:
@@ -108,64 +117,56 @@ class BasisMomentumStrategy(BaseStrategy):
                 invalid.append(ticker)
                 continue
 
-            # Check required columns
             missing = required_cols - set(df.columns)
             if missing:
                 logger.warning("%s: Missing columns %s for %s.", self.strategy_id, missing, ticker)
                 invalid.append(ticker)
                 continue
 
-            # Check as_of_date has data
-            as_of_ts = pd.Timestamp(as_of_date)
-            if as_of_ts not in df.index:
-                logger.warning("%s: No data for %s on %s.", self.strategy_id, ticker, as_of_date)
+            # Use iloc[-1] on the slice up to as_of — avoids KeyError when
+            # as_of is 14:00 UTC but index is midnight.
+            df_to_date = df[df.index <= as_of_ts]
+            if df_to_date.empty:
+                logger.warning(
+                    "%s: No data for %s on or before %s.", self.strategy_id, ticker, as_of.date()
+                )
                 invalid.append(ticker)
                 continue
 
-            row = df.loc[as_of_ts]
-            # Check prices are valid
+            row = df_to_date.iloc[-1]                     # FIX: was df.loc[as_of_ts] → KeyError risk
             for col in required_cols:
                 val = row[col]
-                if pd.isna(val) or val <= 0:
+                if pd.isna(val) or float(val) <= 0:
                     logger.warning(
-                        "%s: Invalid %s price for %s on %s: %s",
-                        self.strategy_id,
-                        col,
-                        ticker,
-                        as_of_date,
-                        val,
+                        "%s: Invalid %s for %s on %s (value=%s).",
+                        self.strategy_id, col, ticker, as_of.date(), val,
                     )
                     invalid.append(ticker)
                     break
 
-        all_valid = len(invalid) == 0
-        return all_valid, list(set(invalid))
+        return len(invalid) == 0, list(set(invalid))
 
     def compute_signals(
         self,
         data: dict[str, pd.DataFrame],
-        as_of_date: date,
+        as_of: datetime,              # FIX: was `as_of_date: date`
     ) -> SignalResult:
         """
         Compute basis-momentum composite signals for all valid tickers.
-
         Returns SignalResult with signals in [-1, +1].
         """
-        as_of_ts = pd.Timestamp(as_of_date)
+        as_of_ts = pd.Timestamp(as_of)                   # FIX: datetime → tz-aware Timestamp
         params = self._params
 
-        # Only compute for valid tickers
-        _, invalid = self.validate_inputs(data, as_of_date)
+        _, invalid = self.validate_inputs(data, as_of)   # FIX: was as_of_date
         valid_tickers = [t for t in self.universe if t not in invalid]
 
         if len(valid_tickers) < 4:
             logger.error(
-                "%s: Only %d valid tickers on %s (need ≥4 for meaningful cross-sectional ranking).",
-                self.strategy_id,
-                len(valid_tickers),
-                as_of_date,
+                "%s: Only %d valid tickers on %s — need ≥4 for cross-sectional ranking.",
+                self.strategy_id, len(valid_tickers), as_of.date(),
             )
-            return self._flat_result(as_of_date, is_valid=False)
+            return self._flat_result(as_of, is_valid=False)   # FIX: was as_of_date
 
         # ── Step 1: Compute raw sub-signals ──────────────────────────────────
         raw_carry: dict[str, float] = {}
@@ -176,56 +177,45 @@ class BasisMomentumStrategy(BaseStrategy):
             df = data[ticker]
             df_to_date = df[df.index <= as_of_ts]
 
-            # ── Carry sub-signal ──────────────────────────────────────────────
-            row = df_to_date.loc[as_of_ts]
+            # Last row up to as_of — same pattern as S1, avoids index KeyError
+            row = df_to_date.iloc[-1]                     # FIX: was df_to_date.loc[as_of_ts]
             cash_price = float(row["cash_price"])
             f3m_price = float(row["f3m_price"])
 
-            # Get actual DTE (calendar days between Cash and 3M settle)
+            # ── Carry sub-signal ──────────────────────────────────────────────
             metal = get_metal(ticker)
             if metal.exchange == Exchange.LME:
-                dte = get_lme_3m_dte(as_of_date)
+                dte = get_lme_3m_dte(as_of.date())
             else:
-                # COMEX: approximate with actual days to next contract expiry
-                # If f3m_expiry column exists, use it; else default to 91
+                # COMEX: use f3m_dte if available, else 91-day approximation
                 dte = int(row.get("f3m_dte", 91))
 
             if dte <= 0:
                 logger.warning(
-                    "%s: DTE <= 0 for %s on %s — skipping carry.",
-                    self.strategy_id,
-                    ticker,
-                    as_of_date,
+                    "%s: DTE ≤ 0 for %s on %s — carry set to 0.",
+                    self.strategy_id, ticker, as_of.date(),
                 )
                 raw_carry[ticker] = 0.0
             else:
                 # Annualised carry = (Cash - 3M) / Cash × (365 / DTE)
-                # Positive = backwardation, negative = contango
                 raw_carry[ticker] = (cash_price - f3m_price) / cash_price * (365 / dte)
 
             # ── Momentum sub-signal ───────────────────────────────────────────
             skip = params["momentum_skip"]
             lookback = params["momentum_lookback"]
 
-            # Need lookback + skip days of history
-            min_idx = len(df_to_date) - lookback - skip
-            if min_idx < 0:
+            if len(df_to_date) < lookback + skip + 1:
                 logger.warning(
-                    "%s: Insufficient history for momentum on %s (%d days available).",
-                    self.strategy_id,
-                    ticker,
-                    len(df_to_date),
+                    "%s: Insufficient history for momentum on %s (%d bars available, need %d).",
+                    self.strategy_id, ticker, len(df_to_date), lookback + skip + 1,
                 )
                 raw_momentum[ticker] = 0.0
             else:
-                # Price 65 days ago (skip last 5 to avoid short-term reversal)
-                price_now = float(df_to_date["close"].iloc[-(skip + 1)])  # T-5
+                price_now = float(df_to_date["close"].iloc[-(skip + 1)])    # T-5
                 price_then = float(df_to_date["close"].iloc[-(lookback + skip)])  # T-65
-
-                if price_then <= 0:
-                    raw_momentum[ticker] = 0.0
-                else:
-                    raw_momentum[ticker] = np.log(price_now / price_then)
+                raw_momentum[ticker] = (
+                    np.log(price_now / price_then) if price_then > 0 else 0.0
+                )
 
             metadata[ticker] = {
                 "cash_price": cash_price,
@@ -244,9 +234,8 @@ class BasisMomentumStrategy(BaseStrategy):
 
         # ── Step 3: Composite signal with interaction term ────────────────────
         # signal_i = 0.5×z_carry + 0.5×z_mom + 0.25×(z_carry × z_mom)
-        #
-        # The interaction term is positive when both signals agree on direction,
-        # and negative when they disagree — naturally filters mixed signals.
+        # Interaction is positive when both sub-signals agree on direction —
+        # naturally amplifies high-conviction, attenuates conflicted signals.
         signals_raw = (
             params["carry_weight"] * z_carry
             + params["momentum_weight"] * z_mom
@@ -254,10 +243,9 @@ class BasisMomentumStrategy(BaseStrategy):
         )
 
         # ── Step 4: Final normalisation to [-1, +1] ───────────────────────────
-        # Re-normalise the composite (interaction can push it beyond ±1)
+        # Re-normalise composite (interaction can push past ±1)
         final_signals = self.cross_sectional_zscore(signals_raw, clip=params["zscore_clip"])
 
-        # Add composite signal data to metadata
         for ticker in valid_tickers:
             metadata[ticker].update(
                 {
@@ -268,14 +256,17 @@ class BasisMomentumStrategy(BaseStrategy):
                 }
             )
 
-        # Build final signals dict — flat (0.0) for any invalid/missing tickers
         all_signals: dict[str, float] = {t: 0.0 for t in self.universe}
         for ticker in valid_tickers:
             all_signals[ticker] = float(final_signals.get(ticker, 0.0))
 
+        # FIX: was SignalResult(as_of_date=...) — wrong field name, missing 4 required fields
         return SignalResult(
-            as_of_date=as_of_date,
+            computed_at=as_of,
+            valid_from=as_of,
+            valid_until=as_of + self.config.signal_validity_window,
             strategy_id=self.strategy_id,
+            bar_size=self.bar_size,
             signals=all_signals,
             signal_metadata=metadata,
             is_valid=True,
@@ -289,10 +280,10 @@ class BasisMomentumStrategy(BaseStrategy):
     ) -> tuple[list[str], list[str]]:
         """
         Return the top N long and short tickers by signal strength.
-        Useful for reporting and monitoring.
+        Useful for daily reporting and monitoring.
         """
         signals = signal_result.signals
-        sorted_by_signal = sorted(signals.items(), key=lambda x: x[1], reverse=True)
-        longs = [t for t, s in sorted_by_signal if s > 0][:n]
-        shorts = [t for t, s in sorted_by_signal if s < 0][:n]
+        ranked = sorted(signals.items(), key=lambda x: x[1], reverse=True)
+        longs = [t for t, s in ranked if s > 0][:n]
+        shorts = [t for t, s in ranked if s < 0][:n]
         return longs, shorts
