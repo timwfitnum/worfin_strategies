@@ -64,8 +64,8 @@ class Settings(BaseSettings):
         return self.ibkr_port_live if self.environment == Environment.LIVE else self.ibkr_port_paper
 
     # ── Data Sources ─────────────────────────────────────────────────────────
-    nasdaq_data_link_api_key: str = ""
-    fred_api_key: str = ""
+    nasdaq_data_link_api_key: str = "ESDmY52VocJrZpTvn1Nz"
+    fred_api_key: str = "34e9d1a5b657b4bd1520446175e5686f"
 
     # ── Monitoring ────────────────────────────────────────────────────────────
     telegram_bot_token: str = ""

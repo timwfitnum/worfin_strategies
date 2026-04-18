@@ -27,3 +27,6 @@ prometheus-client
 
 pytest
 pytest-cov
+pydantic
+pydantic-settings
+ntplib

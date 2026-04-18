@@ -51,7 +51,7 @@ This is a real trading business — every line of code has financial consequence
 | Component | Choice | Notes |
 |-----------|--------|-------|
 | Language | Python 3.11+ | Primary for all components |
-| Database | PostgreSQL 16 | Run locally for dev; migrate to VPS for live |
+| Database | PostgreSQL 18 | Run locally for dev; migrate to VPS for live |
 | ORM | SQLAlchemy 2.0 | Async-capable; use for all DB interaction |
 | Migrations | Alembic | All schema changes versioned — never raw ALTER TABLE |
 | Broker API | ib_insync | IBKR connectivity; IB Gateway (not TWS) in production |

@@ -117,9 +117,11 @@ def fetch_continuous_futures(
     dataset_code = NASDAQ_CODES[ticker][contract]
 
     try:
+        breakpoint()
         logger.info("Fetching %s (%s) from %s to %s ...", ticker, contract, start_date, end_date)
         raw = nasdaqdatalink.get(
             dataset_code,
+            api_key=nasdaqdatalink.ApiConfig.api_key,
             start_date=start_date.isoformat(),
             end_date=end_date.isoformat(),
             returns="pandas",

@@ -78,7 +78,7 @@ Holdout → Paper Trading (60 days) → Live Ramp.
 
 ## Tech Stack
 
-Python 3.11 · PostgreSQL 16 · SQLAlchemy 2.0 · Alembic · ib_insync ·
+Python 3.11 · PostgreSQL 18 · SQLAlchemy 2.0 · Alembic · ib_insync ·
 vectorbt · pandas · numpy · scipy · arch · pytest
 
 ---

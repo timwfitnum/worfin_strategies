@@ -52,7 +52,7 @@ logger = logging.getLogger(__name__)
 # CONSTANTS
 # ─────────────────────────────────────────────────────────────────────────────
 
-ADV_LOOKBACK_DAYS: int = 20    # Trading days used to compute rolling ADV
+ADV_LOOKBACK_DAYS: int = 20  # Trading days used to compute rolling ADV
 ADV_RELIABILITY_THRESHOLD: float = 0.50  # If >50% bars are zero/NaN → fallback
 
 
@@ -211,8 +211,8 @@ class TradeDecision:
 
 def run_pretrade_checks(
     checker: PreTradeChecker,
-    proposed_deltas: Mapping[str, int],   # {ticker: lots_delta from current}
-    current_lots: Mapping[str, int],      # yesterday's lots per ticker
+    proposed_deltas: Mapping[str, int],  # {ticker: lots_delta from current}
+    current_lots: Mapping[str, int],  # yesterday's lots per ticker
     prices_usd: Mapping[str, float],
     signals: Mapping[str, float],
     signal_timestamp: datetime,
@@ -262,11 +262,12 @@ def run_pretrade_checks(
             proposed_lots=lots_delta,
             proposed_notional_usd=proposed_notional_usd * (1 if lots_delta > 0 else -1),
             current_mid_price=price,
-            order_price=price,          # backtest uses mark as fill price
+            order_price=price,  # backtest uses mark as fill price
             signal_timestamp=signal_timestamp,
             signal_direction=signal_direction,
             portfolio=portfolio,
             usd_gbp_rate=usd_gbp_rate,
+            reference_time=signal_timestamp,
         )
 
         approved = result.all_passed
@@ -322,9 +323,7 @@ def log_rejections_to_audit(
 
     # Always log to logger first — audit-write failures must not mask rejections
     for d in rejected:
-        fails = ", ".join(
-            f"{c.check_name}={c.message}" for c in d.pretrade_result.failed_checks
-        )
+        fails = ", ".join(f"{c.check_name}={c.message}" for c in d.pretrade_result.failed_checks)
         logger.warning(
             "BACKTEST REJECTION: %s %s %+d lots — %s (run=%s)",
             d.strategy_id,
@@ -347,12 +346,12 @@ def log_rejections_to_audit(
                         "breach_type": f"pretrade_{failed.check_name}",
                         "action_taken": "trade_rejected_backtest",
                         "threshold": (
-                            float(failed.limit_value)
+                            round(float(failed.limit_value), 6)
                             if failed.limit_value is not None
                             else None
                         ),
                         "actual_value": (
-                            float(failed.actual_value)
+                            round(float(failed.actual_value), 6)
                             if failed.actual_value is not None
                             else None
                         ),

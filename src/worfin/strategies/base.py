@@ -240,14 +240,14 @@ class BaseStrategy(ABC):
         try:
             result = self.compute_signals(data, as_of)
             elapsed_ms = (time.monotonic() - start) * 1000
-            self.logger.info(
-                "%s signals computed in %.1fms | %s | valid tickers: %d/%d",
-                self.strategy_id,
-                elapsed_ms,
-                as_of.strftime("%Y-%m-%d %H:%M UTC"),
-                len([v for v in result.signals.values() if v != 0]),
-                len(self.universe),
-            )
+            # self.logger.info(
+            #     "%s signals computed in %.1fms | %s | valid tickers: %d/%d",
+            #     self.strategy_id,
+            #     elapsed_ms,
+            #     as_of.strftime("%Y-%m-%d %H:%M UTC"),
+            #     len([v for v in result.signals.values() if v != 0]),
+            #     len(self.universe),
+            # )
             return result
         except Exception as e:
             self.logger.error("%s: compute_signals error: %s", self.strategy_id, e, exc_info=True)
@@ -262,7 +262,7 @@ class BaseStrategy(ABC):
             valid_until=as_of + validity,
             strategy_id=self.strategy_id,
             bar_size=self.bar_size,
-            signals={ticker: 0.0 for ticker in self.universe},
+            signals=dict.fromkeys(self.universe, 0.0),
             signal_metadata={},
             is_valid=is_valid,
             invalid_tickers=self.universe if not is_valid else [],

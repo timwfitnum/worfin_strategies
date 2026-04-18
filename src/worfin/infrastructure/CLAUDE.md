@@ -55,7 +55,7 @@ Spending £30–60/month on a "trading VPS" buys nothing except a nicer marketin
 ```
 VPS
 ├── IB Gateway (headless, port 4001 live / 4002 paper)
-├── PostgreSQL 16 (production DB)
+├── PostgreSQL 18 (production DB)
 ├── Python signal engine (cron/systemd)
 ├── Python execution engine (cron/systemd)
 ├── Risk monitor (systemd, separate process)

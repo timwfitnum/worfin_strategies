@@ -105,6 +105,7 @@ class PreTradeChecker:
         signal_direction: int,  # +1 long, -1 short
         portfolio: PortfolioState,
         usd_gbp_rate: float = 1.27,
+        reference_time: datetime | None = None,
     ) -> PreTradeResult:
         """
         Run all 8 pre-trade checks.
@@ -114,7 +115,7 @@ class PreTradeChecker:
         """
         proposed_notional_gbp = abs(proposed_notional_usd) / usd_gbp_rate
         metal = ALL_METALS.get(ticker)
-        now = datetime.now(UTC)
+        now = reference_time if reference_time is not None else datetime.now(UTC)
 
         result = PreTradeResult(
             ticker=ticker,
@@ -133,7 +134,7 @@ class PreTradeChecker:
             self._check_fat_finger(order_price, current_mid_price),
             self._check_daily_order_count(portfolio),
             self._check_signal_direction(proposed_lots, signal_direction),
-            self._check_signal_staleness(signal_timestamp),
+            self._check_signal_staleness(signal_timestamp, now),
         ]
 
         if result.all_passed:
@@ -361,9 +362,11 @@ class PreTradeChecker:
             message=f"Direction matches signal ({'long' if signal_direction > 0 else 'short'})",
         )
 
-    def _check_signal_staleness(self, signal_timestamp: datetime) -> CheckResult:
+    def _check_signal_staleness(
+        self, signal_timestamp: datetime, now: datetime = None
+    ) -> CheckResult:
         """Check 8: Signal is less than 24 hours old."""
-        now = datetime.now(UTC)
+        now = now if now else datetime.now(UTC)
         if signal_timestamp.tzinfo is None:
             signal_timestamp = signal_timestamp.replace(tzinfo=UTC)
         age_hours = (now - signal_timestamp).total_seconds() / 3600

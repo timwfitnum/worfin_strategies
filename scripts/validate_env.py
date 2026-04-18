@@ -121,7 +121,13 @@ class ValidationReport:
 def check_env_vars() -> CheckResult:
     import os
 
-    missing = [v for v in REQUIRED_ENV_VARS if not os.environ.get(v)]
+    from dotenv import dotenv_values
+
+    # Load from .env file directly, then fall back to os.environ
+    # This mirrors what pydantic-settings does
+    env_file_vars = dotenv_values(".env")
+
+    missing = [v for v in REQUIRED_ENV_VARS if not os.environ.get(v) and not env_file_vars.get(v)]
     if missing:
         return CheckResult(
             "Environment variables",
