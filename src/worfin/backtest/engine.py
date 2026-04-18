@@ -33,15 +33,13 @@ import logging
 import uuid
 from dataclasses import dataclass, field
 from datetime import UTC, date, datetime
-from typing import Optional
 
 import pandas as pd
 from sqlalchemy.engine import Engine
 
 from worfin.backtest.costs import COST_BASELINE_MULTIPLIER
-from worfin.backtest.metrics import PerformanceMetrics, compute_metrics, compute_wfer
-from worfin.backtest.pretrade_integration import (   # ← correct spelling
-    TradeDecision,
+from worfin.backtest.metrics import PerformanceMetrics, compute_metrics
+from worfin.backtest.pretrade_integration import (  # ← correct spelling
     build_portfolio_state,
     compute_adv,
     log_rejections_to_audit,
@@ -49,7 +47,6 @@ from worfin.backtest.pretrade_integration import (   # ← correct spelling
 )
 from worfin.config.calendar import trading_days_between
 from worfin.data.ingestion.fx_rates import FxRateUnavailable, get_usd_gbp, prefetch_fx_rates
-from worfin.data.pipeline.volatility import compute_vol_estimates
 from worfin.execution.pretrade_checks import PreTradeChecker
 from worfin.risk.limits import VOL_FLOOR
 from worfin.risk.sizing import compute_lots
@@ -74,17 +71,17 @@ class BacktestConfig:
     strategy_id: str
     start_date: date
     end_date: date
-    period_label: str                           # "IS", "OOS", "Holdout"
+    period_label: str  # "IS", "OOS", "Holdout"
     total_capital_gbp: float = 100_000.0
     # usd_gbp_rate is intentionally NOT a field here.
     # The engine fetches a live rate from raw_data.fx_rates / FRED for
     # each bar. Hardcoding 1.27 would produce systematically wrong sizing
     # across decades of backtest data. See WalkForwardEngine._get_fx_rate().
     cost_multiplier: float = COST_BASELINE_MULTIPLIER
-    walk_forward_step_months: int = 6           # Anchored walk-forward step size
-    rebalance_every_n_days: int = 10            # Bi-weekly for S4
-    enable_pretrade_checks: bool = True         # Wire in production checks
-    db_engine: Optional[Engine] = field(default=None, repr=False)
+    walk_forward_step_months: int = 6  # Anchored walk-forward step size
+    rebalance_every_n_days: int = 10  # Bi-weekly for S4
+    enable_pretrade_checks: bool = True  # Wire in production checks
+    db_engine: Engine | None = field(default=None, repr=False)
     # Set at run-start; groups all DB writes for this simulation
     backtest_run_id: str = field(default_factory=lambda: str(uuid.uuid4()))
 
@@ -94,13 +91,13 @@ class DailyState:
     """State of the portfolio on a single day."""
 
     date: date
-    positions: dict[str, int]      # {ticker: lots (signed)}
+    positions: dict[str, int]  # {ticker: lots (signed)}
     nav_gbp: float
     daily_return: float
     turnover: float
     signals: dict[str, float]
     transaction_costs_gbp: float
-    usd_gbp_rate: float            # actual rate used on this bar
+    usd_gbp_rate: float  # actual rate used on this bar
 
 
 @dataclass
@@ -108,7 +105,7 @@ class BacktestResult:
     """Full results from a backtest run."""
 
     config: BacktestConfig
-    daily_returns: pd.Series       # Indexed by date
+    daily_returns: pd.Series  # Indexed by date
     daily_nav: pd.Series
     daily_states: list[DailyState] = field(default_factory=list)
     metrics: PerformanceMetrics | None = None
@@ -246,7 +243,7 @@ class WalkForwardEngine:
         self._prefetch_fx_rates(config.start_date, config.end_date)
 
         # Portfolio state
-        current_positions: dict[str, int] = {t: 0 for t in self.strategy.universe}
+        current_positions: dict[str, int] = dict.fromkeys(self.strategy.universe, 0)
         nav = config.total_capital_gbp
         daily_returns: list[float] = []
         daily_nav: list[float] = []
@@ -360,9 +357,7 @@ class WalkForwardEngine:
                         for d in decisions:
                             if d.proposed_lots == 0:
                                 continue
-                            approved_trades[d.ticker] = (
-                                d.proposed_lots if d.approved else 0
-                            )
+                            approved_trades[d.ticker] = d.proposed_lots if d.approved else 0
                         # Write rejections to audit
                         log_rejections_to_audit(
                             engine=config.db_engine,
@@ -474,7 +469,6 @@ class WalkForwardEngine:
         as_of_ts: pd.Timestamp,
     ) -> dict[str, dict[str, float]]:
         """Compute 20d and 60d vol estimates per ticker. No look-ahead."""
-        from worfin.risk.limits import VOL_FLOOR
 
         result: dict[str, dict[str, float]] = {}
         for ticker, df in data.items():
@@ -485,11 +479,15 @@ class WalkForwardEngine:
             log_rets = (window / window.shift(1)).apply(
                 lambda x: float("nan") if x <= 0 else __import__("math").log(x)
             )
-            vol_20 = float(log_rets.rolling(20).std().iloc[-1]) * (252 ** 0.5)
-            vol_60 = float(log_rets.rolling(60).std().iloc[-1]) * (252 ** 0.5)
+            vol_20 = float(log_rets.rolling(20).std().iloc[-1]) * (252**0.5)
+            vol_60 = float(log_rets.rolling(60).std().iloc[-1]) * (252**0.5)
             result[ticker] = {
-                "vol_20d": max(vol_20 if not __import__("math").isnan(vol_20) else VOL_FLOOR, VOL_FLOOR),
-                "vol_60d": max(vol_60 if not __import__("math").isnan(vol_60) else VOL_FLOOR, VOL_FLOOR),
+                "vol_20d": max(
+                    vol_20 if not __import__("math").isnan(vol_20) else VOL_FLOOR, VOL_FLOOR
+                ),
+                "vol_60d": max(
+                    vol_60 if not __import__("math").isnan(vol_60) else VOL_FLOOR, VOL_FLOOR
+                ),
             }
         return result
 

@@ -80,8 +80,7 @@ def configure_api() -> None:
     settings = get_settings()
     if not settings.nasdaq_data_link_api_key:
         raise ValueError(
-            "NASDAQ_DATA_LINK_API_KEY not set in .env — "
-            "get a free key at https://data.nasdaq.com"
+            "NASDAQ_DATA_LINK_API_KEY not set in .env — get a free key at https://data.nasdaq.com"
         )
     nasdaqdatalink.ApiConfig.api_key = settings.nasdaq_data_link_api_key
 
@@ -117,7 +116,6 @@ def fetch_continuous_futures(
     dataset_code = NASDAQ_CODES[ticker][contract]
 
     try:
-        breakpoint()
         logger.info("Fetching %s (%s) from %s to %s ...", ticker, contract, start_date, end_date)
         raw = nasdaqdatalink.get(
             dataset_code,
@@ -192,7 +190,7 @@ def fetch_all_metals(
 
     if errors:
         logger.warning(
-            "Fetch completed with %d failures: %s. " "Check API key and dataset availability.",
+            "Fetch completed with %d failures: %s. Check API key and dataset availability.",
             len(errors),
             errors,
         )

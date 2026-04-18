@@ -500,9 +500,9 @@ def main() -> int:
             logger.warning("IS GATES FAILED — do not run OOS. Review signal logic and parameters.")
             if run_oos:
                 logger.warning("OOS skipped to preserve data split integrity.")
-            return 1
-
-        logger.info("IS GATES PASSED ✅")
+                run_oos = False
+        else:
+            logger.info("IS GATES PASSED ✅")
 
     # ── OOS run ───────────────────────────────────────────────────────────────
     if run_oos:
