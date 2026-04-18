@@ -30,3 +30,4 @@ pytest-cov
 pydantic
 pydantic-settings
 ntplib
+matplotlib

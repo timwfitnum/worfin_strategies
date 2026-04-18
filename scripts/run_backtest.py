@@ -376,6 +376,19 @@ def _parse_args() -> argparse.Namespace:
         help="Disable pre-trade checks (faster, not recommended for final validation)",
     )
     p.add_argument("--log-level", default="INFO", choices=["DEBUG", "INFO", "WARNING", "ERROR"])
+    p.add_argument(
+        "--plot",
+        action="store_true",
+        help="Generate and display performance charts after the backtest completes",
+    )
+    p.add_argument(
+        "--save-plots",
+        metavar="DIR",
+        nargs="?",
+        const="reports",
+        default=None,
+        help="Save chart PNGs to DIR (default: reports/). Implies --plot.",
+    )
     return p.parse_args()
 
 
@@ -555,6 +568,25 @@ def main() -> int:
             interp = "Poor — likely overfitted. Discard or redesign."
         print(f"  WFER interpretation: {interp}")
         print(f"{'─' * 72}\n")
+
+    # ── Charts ────────────────────────────────────────────────────────────────
+    wants_charts = args.plot or args.save_plots is not None
+    if wants_charts and is_result is not None:
+        try:
+            from worfin.backtest.charts import generate_report
+
+            chart_dir = Path(args.save_plots) if args.save_plots else Path("reports")
+            # show=True only when --plot is passed; --save-plots alone saves without popping a window
+            show_window = args.plot
+            generate_report(
+                is_result=is_result,
+                oos_result=oos_result,
+                output_dir=chart_dir,
+                show=show_window,
+            )
+        except Exception as exc:
+            logger.warning("Chart generation failed: %s", exc, exc_info=True)
+            logger.warning("Install matplotlib if missing: pip install matplotlib")
 
     return exit_code
 
