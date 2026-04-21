@@ -140,6 +140,7 @@ def _load_raw_series(
         ORDER BY price_timestamp,
                  CASE source
                      WHEN 'nasdaq_data_link_chris' THEN 1
+                     WHEN 'westmetall'             THEN 1
                      WHEN 'yfinance'               THEN 2
                      WHEN 'synthetic'              THEN 3
                      ELSE 4

@@ -57,7 +57,7 @@ logger = logging.getLogger(__name__)
 # ─────────────────────────────────────────────────────────────────────────────
 # FIXED DATA SPLITS — SET ONCE, NEVER CHANGE
 # ─────────────────────────────────────────────────────────────────────────────
-IS_START = date(2005, 1, 1)
+IS_START = date(2008, 1, 1)  # IS_START = date(2005, 1, 1)
 IS_END = date(2017, 12, 31)
 OOS_START = date(2018, 1, 1)
 OOS_END = date(2022, 12, 31)
@@ -295,6 +295,7 @@ class WalkForwardEngine:
             )
 
             transaction_costs_gbp = 0.0
+            trades: dict[str, int] = {}
             new_signals: dict[str, float] = {}
             orders_today_count = 0 if should_rebalance else orders_today_count
 

@@ -48,7 +48,7 @@ def compute_position_notional(
     realised_vol_20d: float,
     realised_vol_60d: float,
     signal: float,
-    usd_gbp_rate: float,   # REQUIRED — fetch from data.ingestion.fx_rates.get_usd_gbp()
+    usd_gbp_rate: float,  # REQUIRED — fetch from data.ingestion.fx_rates.get_usd_gbp()
 ) -> Decimal:
     """
     Compute target position notional in GBP for a given metal/strategy.
@@ -141,8 +141,8 @@ def compute_lots(
     realised_vol_60d: float,
     signal: float,
     current_price_usd: float,
-    usd_gbp_rate: float,   # REQUIRED — fetch from data.ingestion.fx_rates.get_usd_gbp()
-) -> int:
+    usd_gbp_rate: float,  # REQUIRED — fetch from data.ingestion.fx_rates.get_usd_gbp()
+) -> float:
     """
     Compute the signed lot count for a proposed position.
 
@@ -186,7 +186,7 @@ def compute_portfolio_sizing(
     vol_estimates: dict[str, dict[str, float]],
     prices: dict[str, float],
     total_capital_gbp: float,
-    usd_gbp_rate: float,   # REQUIRED — fetch from data.ingestion.fx_rates.get_usd_gbp()
+    usd_gbp_rate: float,  # REQUIRED — fetch from data.ingestion.fx_rates.get_usd_gbp()
 ) -> dict[str, dict[str, int]]:
     """
     Compute full portfolio sizing across all strategies and metals.
@@ -207,9 +207,7 @@ def compute_portfolio_sizing(
         result[strategy_id] = {}
         for ticker, signal in signals.items():
             if ticker not in vol_estimates or ticker not in prices:
-                logger.warning(
-                    "Missing vol or price data for %s — skipping sizing.", ticker
-                )
+                logger.warning("Missing vol or price data for %s — skipping sizing.", ticker)
                 result[strategy_id][ticker] = 0
                 continue
 
