@@ -22,7 +22,7 @@ from __future__ import annotations
 VOL_FLOOR: float = 0.10  # 10% annualised — NEVER go below this
 
 # Alert thresholds: actual vol vs strategy target vol
-VOL_ALERT_MULTIPLIER: float = 1.5   # Alert if 20d vol > 1.5× target (Day 1/5)
+VOL_ALERT_MULTIPLIER: float = 1.5  # Alert if 20d vol > 1.5× target (Day 1/5)
 VOL_REDUCE_MULTIPLIER: float = 2.0  # Halve allocation if > 2× target
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -42,7 +42,7 @@ MAX_PORTFOLIO_GROSS: float = 2.50  # 250% of NAV
 MAX_PORTFOLIO_NET: float = 0.80  # 80% of NAV (either direction)
 
 # Minimum position size — positions smaller than this are not worth the friction
-MIN_POSITION_NOTIONAL_GBP: float = 5_000.0  # £5,000
+MIN_POSITION_NOTIONAL_GBP: float = 500.0  # £5,000
 
 # Maximum single-metal gross % of total gross exposure
 MAX_SINGLE_METAL_GROSS_PCT: float = 0.30  # 30% of gross
@@ -74,8 +74,8 @@ WEEKLY_SCALE_UP_PER_DAY: float = 0.10  # +10% per day back to 100%
 
 # Reinstatement schedule after peak drawdown suspension
 PEAK_DRAWDOWN_RESTART_PCT: float = 0.25  # Restart at 25%
-PEAK_DRAWDOWN_SCALE_UP_DAYS: int = 40   # Scale over 40 trading days
-PEAK_DRAWDOWN_COOL_OFF_DAYS: int = 10   # Min 10 days before restart
+PEAK_DRAWDOWN_SCALE_UP_DAYS: int = 40  # Scale over 40 trading days
+PEAK_DRAWDOWN_COOL_OFF_DAYS: int = 10  # Min 10 days before restart
 
 # ─────────────────────────────────────────────────────────────────────────────
 # STRATEGY-LEVEL DRAWDOWN BUDGETS
@@ -94,7 +94,7 @@ STRATEGY_DRAWDOWN_BUDGET: dict[str, float] = {
 }
 
 STRATEGY_RESTART_PCT: float = 0.50  # Restart at 50% of normal risk budget
-STRATEGY_SCALE_UP_DAYS: int = 20    # Scale back to 100% over 20 trading days
+STRATEGY_SCALE_UP_DAYS: int = 20  # Scale back to 100% over 20 trading days
 
 # ─────────────────────────────────────────────────────────────────────────────
 # LIQUIDITY LIMITS
@@ -179,7 +179,7 @@ PRICE_DISCREPANCY_THRESHOLD: float = 0.005  # 0.5%
 
 # Block new orders if position discrepancy exceeds either threshold
 RECONCILIATION_VALUE_THRESHOLD_GBP: float = 100.0  # £100
-RECONCILIATION_PCT_THRESHOLD: float = 0.001         # 0.1% of position notional
+RECONCILIATION_PCT_THRESHOLD: float = 0.001  # 0.1% of position notional
 
 # ─────────────────────────────────────────────────────────────────────────────
 # STRATEGY TARGET VOLATILITIES
@@ -210,9 +210,7 @@ STRATEGY_ALLOCATION: dict[str, float] = {
     "S6": 0.10,  # 10% — Pairs
 }
 
-assert (
-    abs(sum(STRATEGY_ALLOCATION.values()) - 1.0) < 1e-10
-), "Strategy allocations must sum to 1.0"
+assert abs(sum(STRATEGY_ALLOCATION.values()) - 1.0) < 1e-10, "Strategy allocations must sum to 1.0"
 
 # ─────────────────────────────────────────────────────────────────────────────
 # KILL SWITCH

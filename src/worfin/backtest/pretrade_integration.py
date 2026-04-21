@@ -360,7 +360,7 @@ def log_rejections_to_audit(
                         "message": (
                             f"Pre-trade check '{failed.check_name}' failed: "
                             f"{failed.message}. "
-                            f"Proposed {d.proposed_lots:+d} lots rejected."
+                            f"Proposed {d.proposed_lots:+.6f} lots rejected."
                         ),
                     }
                 )

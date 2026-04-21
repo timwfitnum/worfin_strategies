@@ -365,6 +365,4 @@ def get_lots_for_notional(ticker: str, price: float, target_notional: float) -> 
     if price <= 0:
         return 0
     per_lot = spec.lot_size * price
-    if per_lot <= 0 or target_notional < per_lot:
-        return 0
     return round(target_notional / per_lot, 6)

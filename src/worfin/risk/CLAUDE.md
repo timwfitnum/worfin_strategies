@@ -84,7 +84,7 @@ MAX_SINGLE_METAL_PCT = 0.20        # 20% of total NAV
 MAX_SINGLE_STRATEGY_GROSS_PCT = 0.40  # 40% of NAV
 MAX_PORTFOLIO_GROSS = 2.50         # 250% of NAV
 MAX_PORTFOLIO_NET = 0.80           # 80% of NAV (long or short)
-MIN_POSITION_NOTIONAL = 5_000      # £5,000 minimum
+MIN_POSITION_NOTIONAL = 500      # £500 minimum
 
 # Volatility limits
 VOL_FLOOR = 0.10                   # 10% minimum vol estimate

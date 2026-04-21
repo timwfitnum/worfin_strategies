@@ -70,9 +70,9 @@ class PreTradeResult:
 
     def summary(self) -> str:
         if self.all_passed:
-            return f"✅ {self.ticker} {self.proposed_lots:+d} lots — all pre-trade checks PASSED"
+            return f"✅ {self.ticker} {self.proposed_lots:+.6f} lots — all pre-trade checks PASSED"
         fails = ", ".join(c.check_name for c in self.failed_checks)
-        return f"❌ {self.ticker} {self.proposed_lots:+d} lots — BLOCKED. Failed: {fails}"
+        return f"❌ {self.ticker} {self.proposed_lots:+.6f} lots — BLOCKED. Failed: {fails}"
 
 
 @dataclass
