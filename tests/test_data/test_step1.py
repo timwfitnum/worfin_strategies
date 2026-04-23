@@ -19,7 +19,6 @@ from unittest.mock import MagicMock, patch
 import pandas as pd
 import pytest
 
-
 # ─────────────────────────────────────────────────────────────────────────────
 # FX RATE FETCHER
 # ─────────────────────────────────────────────────────────────────────────────
@@ -27,7 +26,7 @@ import pytest
 
 class TestFxRates:
     def test_get_from_cache_after_set(self) -> None:
-        from worfin.data.ingestion.fx_rates import _set_cache, _get_from_cache
+        from worfin.data.ingestion.fx_rates import _get_from_cache, _set_cache
 
         test_date = date(2020, 6, 15)
         _set_cache(test_date.isoformat(), 1.25)
@@ -36,7 +35,7 @@ class TestFxRates:
 
     def test_fx_rate_unavailable_raised(self) -> None:
         """get_usd_gbp raises FxRateUnavailable when all sources empty."""
-        from worfin.data.ingestion.fx_rates import FxRateUnavailable, get_usd_gbp, _rate_store
+        from worfin.data.ingestion.fx_rates import FxRateUnavailable, _rate_store, get_usd_gbp
 
         test_date = date(1990, 1, 1)  # Far in the past — not in cache
         # Clear any cached value for this date
@@ -70,10 +69,10 @@ class TestFxRates:
 
     def test_prior_day_fallback_used(self) -> None:
         """When today's rate missing, fallback to prior business day."""
-        from worfin.data.ingestion.fx_rates import get_usd_gbp, _rate_store
+        from worfin.data.ingestion.fx_rates import _rate_store, get_usd_gbp
 
-        target = date(2023, 3, 27)   # Monday
-        friday = date(2023, 3, 24)   # Prior business day
+        target = date(2023, 3, 27)  # Monday
+        friday = date(2023, 3, 24)  # Prior business day
         # Clear cache for both
         _rate_store.pop(target.isoformat(), None)
         _rate_store.pop(friday.isoformat(), None)
@@ -117,7 +116,7 @@ class TestLimits:
         from worfin.risk.limits import FX_RATE_MAX_STALENESS_DAYS
 
         assert isinstance(FX_RATE_MAX_STALENESS_DAYS, int)
-        assert FX_RATE_MAX_STALENESS_DAYS >= 3   # must cover long weekends
+        assert FX_RATE_MAX_STALENESS_DAYS >= 3  # must cover long weekends
 
     def test_fx_rate_max_staleness_days_reasonable(self) -> None:
         from worfin.risk.limits import FX_RATE_MAX_STALENESS_DAYS
@@ -141,25 +140,31 @@ class TestMetalSpec:
         from worfin.config.metals import ALL_METALS
 
         for ticker, spec in ALL_METALS.items():
-            assert hasattr(spec, "typical_adv_lots"), (
-                f"{ticker} missing typical_adv_lots"
-            )
-            assert spec.typical_adv_lots > 0, (
-                f"{ticker}.typical_adv_lots must be > 0, got {spec.typical_adv_lots}"
-            )
+            assert hasattr(spec, "typical_adv_lots"), f"{ticker} missing typical_adv_lots"
+            assert (
+                spec.typical_adv_lots > 0
+            ), f"{ticker}.typical_adv_lots must be > 0, got {spec.typical_adv_lots}"
 
     def test_expected_adv_values(self) -> None:
         from worfin.config.metals import ALL_METALS
 
         # Verify the values from the spec sheet
         expected = {
-            "CA": 2000, "AH": 3000, "ZS": 1500, "NI": 500,
-            "PB": 800, "SN": 50, "GC": 3000, "SI": 1500, "PL": 200, "PA": 100,
+            "CA": 2000,
+            "AH": 3000,
+            "ZS": 1500,
+            "NI": 500,
+            "PB": 800,
+            "SN": 50,
+            "GC": 3000,
+            "SI": 1500,
+            "PL": 200,
+            "PA": 100,
         }
         for ticker, exp_adv in expected.items():
-            assert ALL_METALS[ticker].typical_adv_lots == exp_adv, (
-                f"{ticker}: expected {exp_adv}, got {ALL_METALS[ticker].typical_adv_lots}"
-            )
+            assert (
+                ALL_METALS[ticker].typical_adv_lots == exp_adv
+            ), f"{ticker}: expected {exp_adv}, got {ALL_METALS[ticker].typical_adv_lots}"
 
     def test_metal_spec_is_frozen(self) -> None:
         from worfin.config.metals import COPPER
@@ -171,11 +176,17 @@ class TestMetalSpec:
         """High-liquidity metals should generally have higher ADV than low."""
         from worfin.config.metals import ALL_METALS, LiquidityTier
 
-        tier1_adv = [s.typical_adv_lots for s in ALL_METALS.values() if s.liquidity_tier == LiquidityTier.HIGH]
-        tier3_adv = [s.typical_adv_lots for s in ALL_METALS.values() if s.liquidity_tier == LiquidityTier.LOW]
-        assert min(tier1_adv) > max(tier3_adv), (
-            "All Tier-1 ADV values should exceed all Tier-3 ADV values"
-        )
+        tier1_adv = [
+            s.typical_adv_lots
+            for s in ALL_METALS.values()
+            if s.liquidity_tier == LiquidityTier.HIGH
+        ]
+        tier3_adv = [
+            s.typical_adv_lots for s in ALL_METALS.values() if s.liquidity_tier == LiquidityTier.LOW
+        ]
+        assert min(tier1_adv) > max(
+            tier3_adv
+        ), "All Tier-1 ADV values should exceed all Tier-3 ADV values"
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -194,8 +205,9 @@ class TestLoggingConfig:
         configure_logging(log_level="WARNING", force=False)
 
     def test_correlation_id_is_uuid(self) -> None:
-        from worfin.config.logging_config import get_correlation_id
         import uuid
+
+        from worfin.config.logging_config import get_correlation_id
 
         cid = get_correlation_id()
         parsed = uuid.UUID(cid)  # Raises ValueError if not valid UUID
@@ -208,7 +220,8 @@ class TestLoggingConfig:
 
     def test_json_formatter_produces_valid_json(self) -> None:
         import json
-        from worfin.config.logging_config import _JsonFormatter, _CorrelationFilter
+
+        from worfin.config.logging_config import _CorrelationFilter, _JsonFormatter
 
         fmt = _JsonFormatter()
         filt = _CorrelationFilter()
@@ -230,7 +243,7 @@ class TestLoggingConfig:
         assert "ts" in parsed
 
     def test_human_formatter_produces_string(self) -> None:
-        from worfin.config.logging_config import _HumanFormatter, _CorrelationFilter
+        from worfin.config.logging_config import _CorrelationFilter, _HumanFormatter
 
         fmt = _HumanFormatter()
         filt = _CorrelationFilter()
@@ -259,16 +272,18 @@ class TestSizingNoDefault:
     def test_compute_lots_requires_usd_gbp_rate(self) -> None:
         """compute_lots must require usd_gbp_rate — no default of 1.27."""
         import inspect
+
         from worfin.risk.sizing import compute_lots
 
         sig = inspect.signature(compute_lots)
         param = sig.parameters["usd_gbp_rate"]
-        assert param.default is inspect.Parameter.empty, (
-            "usd_gbp_rate must have NO default — caller must pass live rate"
-        )
+        assert (
+            param.default is inspect.Parameter.empty
+        ), "usd_gbp_rate must have NO default — caller must pass live rate"
 
     def test_compute_position_notional_requires_usd_gbp_rate(self) -> None:
         import inspect
+
         from worfin.risk.sizing import compute_position_notional
 
         sig = inspect.signature(compute_position_notional)
@@ -277,6 +292,7 @@ class TestSizingNoDefault:
 
     def test_compute_portfolio_sizing_requires_usd_gbp_rate(self) -> None:
         import inspect
+
         from worfin.risk.sizing import compute_portfolio_sizing
 
         sig = inspect.signature(compute_portfolio_sizing)
@@ -297,8 +313,8 @@ class TestSizingNoDefault:
             current_price_usd=1900.0,
             usd_gbp_rate=1.25,
         )
-        # Result should be non-negative integer
-        assert isinstance(lots, int)
+        # Result should be non-negative float
+        assert isinstance(lots, float)
         assert lots >= 0
 
 
@@ -365,28 +381,29 @@ class TestEngineNoHardcodedFx:
     def test_backtest_config_has_no_usd_gbp_rate_field(self) -> None:
         """BacktestConfig must NOT have a usd_gbp_rate field with default 1.27."""
         import dataclasses
+
         from worfin.backtest.engine import BacktestConfig
 
         field_names = {f.name for f in dataclasses.fields(BacktestConfig)}
-        assert "usd_gbp_rate" not in field_names, (
-            "BacktestConfig must not have usd_gbp_rate — engine fetches it live"
-        )
+        assert (
+            "usd_gbp_rate" not in field_names
+        ), "BacktestConfig must not have usd_gbp_rate — engine fetches it live"
 
     def test_engine_imports_correct_integration_module(self) -> None:
         """engine.py must import from pretrade_integration (not pretrade_intergation)."""
-        import ast
         from pathlib import Path
 
         engine_path = Path(__file__).parents[2] / "src/worfin/backtest/engine.py"
         if not engine_path.exists():
             # Running from repo root
             import worfin.backtest.engine as eng_mod
+
             engine_path = Path(eng_mod.__file__)
 
         source = engine_path.read_text()
-        assert "pretrade_integration" in source, (
-            "engine.py must import from pretrade_integration (correct spelling)"
-        )
-        assert "pretrade_intergation" not in source, (
-            "engine.py must NOT import from pretrade_intergation (wrong spelling)"
-        )
+        assert (
+            "pretrade_integration" in source
+        ), "engine.py must import from pretrade_integration (correct spelling)"
+        assert (
+            "pretrade_intergation" not in source
+        ), "engine.py must NOT import from pretrade_intergation (wrong spelling)"

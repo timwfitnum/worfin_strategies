@@ -131,13 +131,19 @@ class AlertManager:
         try:
             import asyncio
 
-            asyncio.run(
-                self._telegram_client.send_message(  # type: ignore[union-attr]
-                    chat_id=self._telegram_chat_id,
-                    text=text,
-                    parse_mode="Markdown",
-                )
+            coro = self._telegram_client.send_message(
+                chat_id=self._telegram_chat_id,
+                text=text,
+                parse_mode="Markdown",
             )
+            try:
+                # Inside a running event loop (e.g. called from engine.py) —
+                # schedule as a background task; do NOT call asyncio.run().
+                loop = asyncio.get_running_loop()
+                loop.create_task(coro)
+            except RuntimeError:
+                # No running loop (e.g. called from sync code) — safe to run.
+                asyncio.run(coro)
         except Exception as e:
             # NEVER let alert failure propagate — log and continue
             logger.error("Telegram alert failed (non-critical): %s", e)
@@ -227,8 +233,8 @@ class AlertManager:
         self.send(
             AlertLevel.INFO,
             f"Daily close report: NAV £{nav:,.0f} | "
-            f"Day P&L: £{daily_pnl:+,.0f} ({daily_pnl/nav:.1%}) | "
-            f"MTD P&L: £{mtd_pnl:+,.0f} ({mtd_pnl/nav:.1%})",
+            f"Day P&L: £{daily_pnl:+,.0f} ({daily_pnl / nav:.1%}) | "
+            f"MTD P&L: £{mtd_pnl:+,.0f} ({mtd_pnl / nav:.1%})",
         )
 
 

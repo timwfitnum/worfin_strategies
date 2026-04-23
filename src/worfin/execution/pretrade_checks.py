@@ -104,7 +104,7 @@ class PreTradeChecker:
         signal_timestamp: datetime,
         signal_direction: int,  # +1 long, -1 short
         portfolio: PortfolioState,
-        usd_gbp_rate: float = 1.27,
+        usd_gbp_rate: float,
         reference_time: datetime | None = None,
     ) -> PreTradeResult:
         """
