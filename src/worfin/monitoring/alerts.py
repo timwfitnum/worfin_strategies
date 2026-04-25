@@ -222,6 +222,43 @@ class AlertManager:
             context={"triggered_by": triggered_by, "reason": reason},
         )
 
+    def startup_ping(
+        self,
+        environment: str,
+        strategies: list[str],
+        account_id_masked: str,
+    ) -> None:
+        """
+        Proof-of-life announcement for paper/live process startup.
+
+        Unlike send(AlertLevel.INFO, ...), this ALWAYS pushes to Telegram so
+        that cron runs produce a visible ping on the operator's phone. Severity
+        is semantically INFO — we do not abuse WARNING just to get a push.
+
+        Structured log is emitted unconditionally; Telegram push is best-effort
+        and never raises. Safe to call from a top-level cron entry point.
+        """
+        message = (
+            f"WorFIn started. env={environment} strategies={strategies} account={account_id_masked}"
+        )
+        context = {
+            "environment": environment,
+            "strategies": strategies,
+            "account_id_masked": account_id_masked,
+        }
+        # 1) Structured log (always)
+        logger.info("STARTUP_PING: %s | %s", message, json.dumps(context))
+        # 2) Telegram (unconditional — the point of this method)
+        self._send_telegram(
+            icon="🟢",
+            level=AlertLevel.INFO,
+            message=message,
+            strategy_id=None,
+            ticker=None,
+            context=context,
+            timestamp=datetime.now(UTC),
+        )
+
     def system_startup(self, environment: str) -> None:
         self.send(
             AlertLevel.INFO,

@@ -157,7 +157,7 @@ SLIPPAGE_ALERT_MULTIPLIER: float = 2.0
 # FxRateUnavailable. FRED DEXUSUK has gaps on US bank holidays — 5 days
 # covers a long weekend plus one contingency day without over-relaxing
 # for genuine outages.
-FX_RATE_MAX_STALENESS_DAYS: int = 5
+FX_RATE_MAX_STALENESS_DAYS: int = 7
 
 # ─────────────────────────────────────────────────────────────────────────────
 # DATA QUALITY THRESHOLDS
