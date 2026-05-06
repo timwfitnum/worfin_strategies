@@ -33,11 +33,14 @@ EXIT CODES:
 from __future__ import annotations
 
 import argparse
+import json
 import logging
+import subprocess
 import sys
 import uuid
 from datetime import UTC, date, datetime
 from pathlib import Path
+from typing import Any
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
@@ -66,6 +69,52 @@ from worfin.strategies.base import BaseStrategy
 logger = logging.getLogger("run_backtest")
 
 _SEP = "=" * 72
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# YAML CONFIG LOADING
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+def _load_yaml_config(path: Path) -> dict[str, Any]:
+    """Load a backtest run config from a YAML file."""
+    try:
+        import yaml  # type: ignore[import-untyped]
+    except ImportError:
+        try:
+            import ruamel.yaml as yaml  # type: ignore[import-untyped,no-redef]
+        except ImportError:
+            raise SystemExit(
+                "PyYAML or ruamel.yaml is required for --config. "
+                "Install with: pip install pyyaml"
+            )
+    with path.open() as fh:
+        return yaml.safe_load(fh)  # type: ignore[attr-defined]
+
+
+def _write_run_metadata(
+    output_dir: Path,
+    config_snapshot: dict[str, Any],
+    run_id: str,
+) -> None:
+    """Write reproducibility metadata alongside backtest outputs."""
+    try:
+        git_hash = subprocess.check_output(
+            ["git", "rev-parse", "HEAD"], text=True
+        ).strip()
+    except Exception:
+        git_hash = "unknown"
+
+    metadata = {
+        "run_id": run_id,
+        "git_commit": git_hash,
+        "generated_at": datetime.now(UTC).isoformat(),
+        "config": config_snapshot,
+    }
+    output_dir.mkdir(parents=True, exist_ok=True)
+    with (output_dir / "run_metadata.json").open("w") as fh:
+        json.dump(metadata, fh, indent=2, default=str)
+    logger.info("Run metadata written to %s/run_metadata.json", output_dir)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -363,14 +412,28 @@ def _print_report(result: BacktestResult, wfer: float | None = None) -> None:
 
 def _parse_args() -> argparse.Namespace:
     p = argparse.ArgumentParser(description="WorFIn walk-forward backtest runner.")
-    p.add_argument("--strategy", required=True, choices=["S1", "S2", "S3", "S4", "S5", "S6"])
+    p.add_argument(
+        "--config",
+        metavar="YAML",
+        type=Path,
+        default=None,
+        help="Path to a YAML run config (e.g. config/backtest_runs/s4_is_v1.yaml). "
+             "CLI args override YAML values when both are supplied.",
+    )
+    p.add_argument(
+        "--output",
+        metavar="DIR",
+        type=Path,
+        default=None,
+        help="Directory for output files (parquet, json, log). Created if absent.",
+    )
+    p.add_argument("--strategy", choices=["S1", "S2", "S3", "S4", "S5", "S6"])
     p.add_argument(
         "--period",
-        required=True,
         choices=["IS", "OOS", "all"],
         help="IS=2005-2017 | OOS=2018-2022 | all=IS then OOS",
     )
-    p.add_argument("--capital", type=float, default=100_000.0, metavar="GBP")
+    p.add_argument("--capital", type=float, default=None, metavar="GBP")
     p.add_argument(
         "--no-pretrade",
         action="store_true",
@@ -390,7 +453,33 @@ def _parse_args() -> argparse.Namespace:
         default=None,
         help="Save chart PNGs to DIR (default: reports/). Implies --plot.",
     )
-    return p.parse_args()
+    args = p.parse_args()
+
+    # Load YAML config and apply as defaults (CLI args take precedence)
+    yaml_cfg: dict[str, Any] = {}
+    if args.config is not None:
+        if not args.config.exists():
+            p.error(f"Config file not found: {args.config}")
+        yaml_cfg = _load_yaml_config(args.config)
+        logger.debug("Loaded YAML config from %s", args.config)
+
+    if args.strategy is None:
+        args.strategy = yaml_cfg.get("strategy")
+    if args.period is None:
+        args.period = yaml_cfg.get("period", "IS")
+    if args.capital is None:
+        args.capital = float(yaml_cfg.get("capital_gbp", 100_000.0))
+    if args.output is None and "output_dir" in yaml_cfg:
+        args.output = Path(yaml_cfg["output_dir"])
+
+    if args.strategy is None:
+        p.error("--strategy is required (or set 'strategy' in the YAML config)")
+    if args.period is None:
+        p.error("--period is required (or set 'period' in the YAML config)")
+
+    # Stash yaml_cfg for metadata snapshot
+    args._yaml_cfg = yaml_cfg  # type: ignore[attr-defined]
+    return args
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -440,10 +529,30 @@ def main() -> int:
     run_oos = args.period in ("OOS", "all")
     data_end = OOS_END if run_oos else IS_END
 
+    # ── Output directory + metadata ───────────────────────────────────────────
+    output_dir = args.output if args.output is not None else Path("runs") / args.strategy.lower()
+    output_dir.mkdir(parents=True, exist_ok=True)
+    logger.info("Output directory: %s", output_dir)
+
     # ── Load price data ───────────────────────────────────────────────────────
     logger.info("Loading price data from DB (%s → %s) …", IS_START, data_end)
     try:
         run_id = str(uuid.uuid4())
+        _write_run_metadata(
+            output_dir=output_dir,
+            config_snapshot={
+                "strategy": args.strategy,
+                "period": args.period,
+                "capital_gbp": args.capital,
+                "is_start": str(IS_START),
+                "is_end": str(IS_END),
+                "oos_start": str(OOS_START),
+                "oos_end": str(OOS_END),
+                "pretrade_enabled": not args.no_pretrade,
+                "yaml_config": getattr(args, "_yaml_cfg", {}),
+            },
+            run_id=run_id,
+        )
         price_data = load_price_data(
             tickers=universe,
             start=IS_START,

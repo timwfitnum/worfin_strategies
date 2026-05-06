@@ -19,7 +19,6 @@ dependencies = [
     "psycopg2-binary>=2.9.9",
     "alembic>=1.13.2",
     "arch>=7.0.0",
-    "empyrical>=0.5.5",
     "requests>=2.32.3",
     "aiohttp>=3.10.5",
     "APScheduler>=3.10.4",

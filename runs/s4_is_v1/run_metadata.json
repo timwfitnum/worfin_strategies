@@ -1,0 +1,68 @@
+{
+  "run_id": "d9c089a8-2b33-4b86-8df3-be8c804a5a75",
+  "git_commit": "33b456a920195633a093ff2e48800d698b3499a0",
+  "generated_at": "2026-04-25T20:22:48.280973+00:00",
+  "config": {
+    "strategy": "S4",
+    "period": "IS",
+    "capital_gbp": 100000.0,
+    "is_start": "2008-01-01",
+    "is_end": "2017-12-31",
+    "oos_start": "2018-01-01",
+    "oos_end": "2022-12-31",
+    "pretrade_enabled": true,
+    "yaml_config": {
+      "run_id": "s4_is_v1",
+      "strategy": "S4",
+      "period": "IS",
+      "output_dir": "runs/s4_is_v1",
+      "universe": [
+        "CA",
+        "AH",
+        "ZS",
+        "NI",
+        "PB",
+        "SN",
+        "GC",
+        "SI",
+        "PL",
+        "PA"
+      ],
+      "in_sample": {
+        "start": "2008-01-02",
+        "end": "2017-12-31"
+      },
+      "out_of_sample": null,
+      "holdout": null,
+      "frequency": "daily",
+      "bar_size": "1d",
+      "rebalance": "biweekly",
+      "capital_gbp": 100000,
+      "target_vol_pct": 11,
+      "vol_lookback_days": 60,
+      "formation_window_months": 12,
+      "momentum_lookback_days": 60,
+      "momentum_skip_days": 5,
+      "carry_weight": 0.5,
+      "momentum_weight": 0.5,
+      "interaction_weight": 0.25,
+      "zscore_clip": 2.0,
+      "costs": {
+        "model": "standard",
+        "multiplier": 1.2,
+        "bps_overrides": {
+          "NI": 12,
+          "SN": 25
+        },
+        "include_roll": true
+      },
+      "fx_handling": {
+        "base_currency": "USD"
+      },
+      "seeds": {
+        "numpy": 42
+      },
+      "environment": "backtest"
+    }
+  }
+}

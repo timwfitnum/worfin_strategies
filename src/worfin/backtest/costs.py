@@ -56,6 +56,8 @@ COST_STRESS_MULTIPLIER: float = 1.50
 # Baseline multiplier for standard backtesting (use 1.2 = 20% buffer)
 COST_BASELINE_MULTIPLIER: float = 1.20
 
+TRADING_DAYS_PER_YEAR: int = 252
+
 
 @dataclass
 class TradeCost:
@@ -196,7 +198,6 @@ def estimate_annual_cost_drag(
         }
     """
     annual_trades = (TRADING_DAYS_PER_YEAR / avg_holding_days) * avg_positions
-    TRADING_DAYS_PER_YEAR = 252
 
     total_annual_cost = 0.0
     for ticker, weight in universe_mix.items():

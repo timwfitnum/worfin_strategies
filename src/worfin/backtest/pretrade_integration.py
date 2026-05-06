@@ -362,6 +362,9 @@ def log_rejections_to_audit(
                             f"{failed.message}. "
                             f"Proposed {d.proposed_lots:+.6f} lots rejected."
                         ),
+                        "backtest_run_id": (
+                            backtest_run_id if backtest_run_id is not None else None
+                        ),
                     }
                 )
         if rows:
@@ -369,10 +372,10 @@ def log_rejections_to_audit(
                 """
                 INSERT INTO audit.risk_breaches
                     (breach_timestamp, breach_type, action_taken, threshold,
-                     actual_value, strategy_id, ticker, message)
+                     actual_value, strategy_id, ticker, message, backtest_run_id)
                 VALUES
                     (:breach_timestamp, :breach_type, :action_taken, :threshold,
-                     :actual_value, :strategy_id, :ticker, :message)
+                     :actual_value, :strategy_id, :ticker, :message, :backtest_run_id)
                 """
             )
             with engine.begin() as conn:
