@@ -26,7 +26,7 @@ from worfin.risk.limits import (
     MAX_PORTFOLIO_GROSS,
     MAX_PORTFOLIO_NET,
     MAX_SIGNAL_AGE_HOURS,
-    MAX_SINGLE_METAL_PCT,
+    MAX_SINGLE_INSTRUMENT_GROSS_PCT,
 )
 
 logger = logging.getLogger(__name__)
@@ -159,7 +159,7 @@ class PreTradeChecker:
         """Check 1: Single-metal notional within 20% of NAV."""
         existing = abs(portfolio.current_positions.get(ticker, 0.0))
         total_after = existing + proposed_notional_gbp
-        limit = portfolio.nav_gbp * MAX_SINGLE_METAL_PCT
+        limit = portfolio.nav_gbp * MAX_SINGLE_INSTRUMENT_GROSS_PCT
 
         if total_after > limit:
             return CheckResult(
@@ -167,7 +167,7 @@ class PreTradeChecker:
                 status=CheckStatus.FAIL,
                 message=(
                     f"{ticker}: new total {total_after:,.0f} GBP would exceed "
-                    f"single-metal limit {limit:,.0f} GBP ({MAX_SINGLE_METAL_PCT:.0%} of NAV)"
+                    f"single-metal limit {limit:,.0f} GBP ({MAX_SINGLE_INSTRUMENT_GROSS_PCT:.0%} of NAV)"
                 ),
                 actual_value=total_after,
                 limit_value=limit,

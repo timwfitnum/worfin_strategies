@@ -57,7 +57,9 @@ logger = logging.getLogger(__name__)
 # ─────────────────────────────────────────────────────────────────────────────
 # FIXED DATA SPLITS — SET ONCE, NEVER CHANGE
 # ─────────────────────────────────────────────────────────────────────────────
-IS_START = date(2008, 1, 1)  # Data available from 2008-01-02; extend to 2005 when Nasdaq DataLink access restored
+IS_START = date(
+    2008, 1, 1
+)  # Data available from 2008-01-02; extend to 2005 when Nasdaq DataLink access restored
 IS_END = date(2017, 12, 31)
 OOS_START = date(2018, 1, 1)
 OOS_END = date(2022, 12, 31)

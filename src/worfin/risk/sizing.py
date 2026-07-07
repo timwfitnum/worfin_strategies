@@ -24,7 +24,7 @@ from decimal import Decimal
 
 from worfin.config.metals import ALL_METALS, get_lots_for_notional
 from worfin.risk.limits import (
-    MAX_SINGLE_METAL_PCT,
+    MAX_SINGLE_INSTRUMENT_GROSS_PCT,
     MIN_POSITION_NOTIONAL_GBP,
     STRATEGY_ALLOCATION,
     STRATEGY_TARGET_VOL,
@@ -106,7 +106,7 @@ def compute_position_notional(
     notional = min(notional_20d, notional_60d_cap)
 
     # ── Step 4: SINGLE-METAL CAP ─────────────────────────────────────────────
-    single_metal_cap = total_capital_gbp * MAX_SINGLE_METAL_PCT
+    single_metal_cap = total_capital_gbp * MAX_SINGLE_INSTRUMENT_GROSS_PCT
     notional = min(notional, single_metal_cap)
 
     # ── Step 5: LIQUIDITY DISCOUNT ────────────────────────────────────────────

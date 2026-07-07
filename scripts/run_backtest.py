@@ -99,9 +99,7 @@ def _write_run_metadata(
 ) -> None:
     """Write reproducibility metadata alongside backtest outputs."""
     try:
-        git_hash = subprocess.check_output(
-            ["git", "rev-parse", "HEAD"], text=True
-        ).strip()
+        git_hash = subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip()
     except Exception:
         git_hash = "unknown"
 
@@ -418,7 +416,7 @@ def _parse_args() -> argparse.Namespace:
         type=Path,
         default=None,
         help="Path to a YAML run config (e.g. config/backtest_runs/s4_is_v1.yaml). "
-             "CLI args override YAML values when both are supplied.",
+        "CLI args override YAML values when both are supplied.",
     )
     p.add_argument(
         "--output",

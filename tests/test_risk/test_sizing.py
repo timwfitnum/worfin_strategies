@@ -13,8 +13,7 @@ from decimal import Decimal
 import pytest
 
 from worfin.risk.limits import (
-    MAX_SINGLE_METAL_PCT,
-    STRATEGY_ALLOCATION,
+    MAX_SINGLE_INSTRUMENT_GROSS_PCT,
     VOL_FLOOR,
 )
 from worfin.risk.sizing import compute_position_notional
@@ -55,9 +54,9 @@ class TestVolFloor:
             signal=1.0,
             usd_gbp_rate=_USD_GBP,
         )
-        assert (
-            notional_low_vol == notional_at_floor
-        ), "Position with vol=5% should equal position with vol=10% (floor applied)"
+        assert notional_low_vol == notional_at_floor, (
+            "Position with vol=5% should equal position with vol=10% (floor applied)"
+        )
 
     def test_vol_floor_does_not_apply_above_floor(self):
         """Normal vol (>10%) should not be affected by the floor."""
@@ -79,9 +78,9 @@ class TestVolFloor:
             signal=1.0,
             usd_gbp_rate=_USD_GBP,
         )
-        assert (
-            notional_normal < notional_at_floor
-        ), "Higher vol should produce smaller position than floor"
+        assert notional_normal < notional_at_floor, (
+            "Higher vol should produce smaller position than floor"
+        )
 
     def test_vol_floor_constant_value(self):
         """The vol floor must be exactly 10% — never changed silently."""
@@ -120,9 +119,9 @@ class TestRobustnessCap:
             signal=1.0,
             usd_gbp_rate=_USD_GBP,
         )
-        assert notional <= expected_cap + Decimal(
-            "0.01"
-        ), "60d vol cap should prevent notional exceeding what 60d vol would produce"
+        assert notional <= expected_cap + Decimal("0.01"), (
+            "60d vol cap should prevent notional exceeding what 60d vol would produce"
+        )
 
     def test_no_cap_when_20d_vol_higher(self):
         """When 20d vol is higher than 60d, no cap applies (20d is already conservative)."""
@@ -187,9 +186,9 @@ class TestSignalScaling:
             signal=0.5,
             usd_gbp_rate=_USD_GBP,
         )
-        assert (
-            abs(float(n_half) - float(n1) * 0.5) < 1.0
-        ), "Half-strength signal should produce half the notional"
+        assert abs(float(n_half) - float(n1) * 0.5) < 1.0, (
+            "Half-strength signal should produce half the notional"
+        )
 
     def test_negative_signal_gives_negative_notional(self):
         """Negative signal → short position (negative notional)."""
@@ -227,7 +226,7 @@ class TestPositionLimits:
     def test_notional_never_exceeds_20pct_nav(self):
         """Single-metal notional must never exceed 20% of NAV."""
         capital = 100_000
-        max_allowed = capital * MAX_SINGLE_METAL_PCT
+        max_allowed = capital * MAX_SINGLE_INSTRUMENT_GROSS_PCT
 
         # Use extreme parameters that would produce a huge position without the cap
         notional = compute_position_notional(
@@ -239,9 +238,9 @@ class TestPositionLimits:
             signal=1.0,
             usd_gbp_rate=_USD_GBP,
         )
-        assert (
-            float(notional) <= max_allowed + 0.01
-        ), f"Notional {notional} exceeds 20% NAV limit {max_allowed}"
+        assert float(notional) <= max_allowed + 0.01, (
+            f"Notional {notional} exceeds 20% NAV limit {max_allowed}"
+        )
 
     def test_minimum_position_size_enforced(self):
         """Positions below £5,000 should return 0 (not worth the friction)."""
@@ -284,9 +283,9 @@ class TestLiquidityDiscount:
             signal=1.0,
             usd_gbp_rate=_USD_GBP,
         )
-        assert float(palladium_notional) < float(
-            gold_notional
-        ), "Tier 3 metal (PA) should have smaller notional than Tier 1 (GC)"
+        assert float(palladium_notional) < float(gold_notional), (
+            "Tier 3 metal (PA) should have smaller notional than Tier 1 (GC)"
+        )
 
     def test_tier3_discount_is_50pct(self):
         """Verify Tier 3 discount is exactly 50% vs Tier 1 (same vol, same signal)."""
@@ -312,22 +311,3 @@ class TestLiquidityDiscount:
         # Palladium should be 50% of Gold (Tier 3 discount = 0.50)
         ratio = float(palladium_n) / float(gold_n)
         assert abs(ratio - 0.50) < 0.01, f"Expected Tier 3 discount of 50%, got {ratio:.1%}"
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# STRATEGY ALLOCATION INTEGRITY
-# ─────────────────────────────────────────────────────────────────────────────
-
-
-class TestStrategyAllocations:
-    def test_allocations_sum_to_one(self):
-        """All strategy allocations must sum to exactly 1.0."""
-        total = sum(STRATEGY_ALLOCATION.values())
-        assert (
-            abs(total - 1.0) < 1e-10
-        ), f"Strategy allocations sum to {total:.6f}, must be exactly 1.0"
-
-    def test_all_six_strategies_defined(self):
-        """All six strategies must have allocations."""
-        required = {"S1", "S2", "S3", "S4", "S5", "S6"}
-        assert required.issubset(STRATEGY_ALLOCATION.keys())

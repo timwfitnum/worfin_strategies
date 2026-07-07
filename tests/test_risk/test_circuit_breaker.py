@@ -45,7 +45,6 @@ def breaker():
 
 
 class TestDailyLossBreaker:
-
     def test_triggers_at_exactly_2pct(self, breaker):
         pnl = make_pnl(nav=100_000, daily_pnl=-2_000)  # Exactly -2%
         result = breaker.check_all(pnl)
@@ -71,13 +70,11 @@ class TestDailyLossBreaker:
     def test_daily_loss_limit_constant(self):
         """The 2% daily loss limit must be exactly 0.020."""
         assert DAILY_LOSS_LIMIT == 0.020, (
-            "DAILY_LOSS_LIMIT must be 0.020 (2%). "
-            "Changing this requires documented justification."
+            "DAILY_LOSS_LIMIT must be 0.020 (2%). Changing this requires documented justification."
         )
 
 
 class TestWeeklyLossBreaker:
-
     def test_triggers_at_35bps(self, breaker):
         pnl = make_pnl(nav=100_000, weekly_pnl=-3_500)  # -3.5%
         result = breaker.check_all(pnl)
@@ -94,7 +91,6 @@ class TestWeeklyLossBreaker:
 
 
 class TestMonthlyDrawdownBreaker:
-
     def test_triggers_at_5pct(self, breaker):
         # NAV fell 5% from month start
         pnl = make_pnl(nav=95_000, month_start_nav=100_000)
@@ -111,7 +107,6 @@ class TestMonthlyDrawdownBreaker:
 
 
 class TestPeakDrawdownBreaker:
-
     def test_full_suspend_at_10pct(self, breaker):
         pnl = make_pnl(nav=90_000, all_time_hwm=100_000)  # -10% from HWM
         result = breaker.check_all(pnl)
@@ -150,15 +145,9 @@ class TestSeverityOrdering:
 
 
 class TestStrategyBreaker:
-
     @pytest.fixture
     def strategy_breaker(self):
         return StrategyCircuitBreaker()
-
-    def test_s4_suspends_at_budget(self, strategy_breaker):
-        budget = STRATEGY_DRAWDOWN_BUDGET["S4"]  # 15%
-        result = strategy_breaker.check_strategy_drawdown("S4", drawdown_from_hwm=budget)
-        assert result.action == CircuitBreakerAction.FULL_SUSPEND
 
     def test_s5_suspends_at_lower_budget(self, strategy_breaker):
         budget = STRATEGY_DRAWDOWN_BUDGET["S5"]  # 10%

@@ -30,7 +30,7 @@ VOL_REDUCE_MULTIPLIER: float = 2.0  # Halve allocation if > 2× target
 # ─────────────────────────────────────────────────────────────────────────────
 
 # Maximum single-metal notional as % of total NAV
-MAX_SINGLE_METAL_PCT: float = 0.20  # 20%
+MAX_SINGLE_INSTRUMENT_PCT: float = 0.20  # 20%
 
 # Maximum single-strategy gross exposure as % of NAV
 MAX_SINGLE_STRATEGY_GROSS_PCT: float = 0.40  # 40%
@@ -45,7 +45,7 @@ MAX_PORTFOLIO_NET: float = 0.80  # 80% of NAV (either direction)
 MIN_POSITION_NOTIONAL_GBP: float = 500.0  # £5,000
 
 # Maximum single-metal gross % of total gross exposure
-MAX_SINGLE_METAL_GROSS_PCT: float = 0.30  # 30% of gross
+MAX_SINGLE_INSTRUMENT_GROSS_PCT: float = 0.30  # 30% of gross
 
 # ─────────────────────────────────────────────────────────────────────────────
 # CIRCUIT BREAKERS (PORTFOLIO-LEVEL)

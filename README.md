@@ -1,7 +1,7 @@
 # WorFIn — Worthington-Fitnum Investments
-## Systematic Metals Trading System
+## Systematic Trading System
 
-Private systematic trading system for LME base metals and COMEX precious metals.
+Private systematic trading system.
 Six statistically-validated strategies. Daily frequency. Python + PostgreSQL + Interactive Brokers.
 
 ---
@@ -14,8 +14,7 @@ Six statistically-validated strategies. Daily frequency. Python + PostgreSQL + I
 | S1 | Term Structure Carry | Carry | 0.4–0.8 | 20% | 🔴 Pending |
 | S2 | Time-Series Momentum | Trend | 0.5–1.0 | 20% | 🔴 Pending |
 | S3 | Cross-Sectional Momentum | Rel. Strength | 0.3–0.6 | 15% | 🔴 Pending |
-| S5 | Inventory Surprise | Event | 0.3–0.5 | 10% | 🔴 Pending |
-| S6 | Inter-Metal Spreads | Stat. Arb | 0.4–0.7 | 10% | 🔴 Pending |
+
 
 ---
 
@@ -24,7 +23,7 @@ Six statistically-validated strategies. Daily frequency. Python + PostgreSQL + I
 ```
 worfin_strategies/
 ├── src/worfin/          # Main package
-│   ├── config/          # Settings, metal specs, exchange calendars
+│   ├── config/          # Settings, specs, exchange calendars
 │   ├── data/            # Ingestion + pipeline
 │   ├── strategies/      # Signal generation (S1–S6)
 │   ├── risk/            # Limits, sizing, circuit breakers
